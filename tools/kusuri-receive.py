@@ -133,25 +133,44 @@ def format_bytes(size: int) -> str:
     return f"{size / (1024 * 1024):.1f} MB"
 
 
+def render_terminal_qr(payload: str) -> str:
+    """按模块矩阵自己画:每模块 2 字符宽 × 1 行高。
+
+    不用 segno 自带的 terminal():它的 compact 模式一行塞两行码,模块被纵向压扁一半,
+    扫码器经常认不出。这里用 ANSI 背景色画 2 字符方块,几何是方的,且深浅与终端主题无关。
+    """
+    import segno
+
+    matrix = segno.make(payload, error="m").matrix
+    width = len(matrix[0])
+    quiet = 2
+    dark = "\033[40m  "
+    light = "\033[47m  "
+    reset = "\033[0m"
+
+    lines = [light * (width + 2 * quiet) + reset for _ in range(quiet)]
+    for row in matrix:
+        line = light * quiet
+        for module in row:
+            line += dark if module else light
+        lines.append(line + light * quiet + reset)
+    lines.extend(light * (width + 2 * quiet) + reset for _ in range(quiet))
+    return "\n".join(lines)
+
+
 def print_qr(payload: str, png_path: str | None) -> None:
     """画二维码。整块失败也只提示,绝不让"收不到推送"败在一个显示细节上。"""
     try:
-        import io
-
         import segno
 
-        code = segno.make(payload, error="m")
         if png_path:
-            code.save(png_path, scale=8, border=4)
-            print(f"  二维码已另存:{png_path}")
-        buffer = io.StringIO()
-        code.terminal(out=buffer, compact=True, border=2)
+            segno.make(payload, error="m").save(png_path, scale=8, border=4)
+            print(f"  二维码已另存 {png_path}")
         if sys.stdout.isatty():
-            # 显式指定"黑点白底":compact 输出用字符块画,配色跟终端主题走,
-            # 暗色主题下会变成浅色码点 + 深色底(反色),部分扫码器会失败。
-            print(f"\033[30;47m{buffer.getvalue()}\033[0m")
+            print(render_terminal_qr(payload))
         else:
-            print(buffer.getvalue())
+            # 输出被重定向/管道时画二维码没有意义(也扫不了),用 --png。
+            print("  (输出不是终端,未画二维码;需要就用 --png <路径> 另存)")
     except Exception as error:  # noqa: BLE001 - 显示失败不该让服务起不来
         print(f"  (二维码显示失败:{error};可用 --png 另存,或手输上面的地址)")
 
@@ -190,7 +209,7 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(body)
         except OSError:
             # 对端提前断开(手机取消发送、Wi-Fi 掉线)是常态:记一行,不炸 traceback。
-            print(f"  · 对端已断开,应答没送到:{self._peer()}")
+            print("  · 对端已断开,应答没送到")
         self.close_connection = True
 
     def finish(self) -> None:
@@ -234,7 +253,7 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
         given = normalize_code(self.headers.get("X-Kusuri-Code", ""))
         if not hmac.compare_digest(given, self.server.code):
             time.sleep(BAD_CODE_DELAY_SECONDS)
-            print(f"  ✗ 口令不匹配,来自 {self._peer()}(已延迟回应)")
+            print(f"  ✗ 口令不匹配(来自 {self._peer()})")
             self._respond_json(401, {"ok": False, "error": "bad_code"})
             return
 
@@ -256,7 +275,7 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
             self._respond_json(400, {"ok": False, "error": "bad_request"})
             return
         if length > MAX_BYTES:
-            print(f"  ✗ 超出大小上限({format_bytes(length)} > {format_bytes(MAX_BYTES)}),来自 {self._peer()}")
+            print(f"  ✗ 太大:{format_bytes(length)} > {format_bytes(MAX_BYTES)}")
             self._respond_json(413, {"ok": False, "error": "too_large"})
             return
 
@@ -271,7 +290,7 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
             try:
                 json.loads(body.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
-                print(f"  ✗ 声称是 JSON 但解析失败,来自 {self._peer()}")
+                print("  ✗ 声称 JSON 但解析失败")
                 self._respond_json(422, {"ok": False, "error": "bad_payload"})
                 return
 
@@ -286,8 +305,10 @@ class UploadHandler(http.server.BaseHTTPRequestHandler):
 
         self.server.received += 1
         self.server.last_received_at = time.time()
-        print(f"  ✓ {time.strftime('%H:%M:%S')} 收到 {kind}:{destination}")
-        print(f"      {format_bytes(len(body))} · sha256 {digest}  · 来自 {self._peer()}")
+        print(
+            f"  ✓ {time.strftime('%H:%M:%S')} {kind} · {format_bytes(len(body))} · {destination}",
+        )
+        print(f"    sha256 {digest}")
         self._respond_json(
             200,
             {"ok": True, "saved": str(destination), "sha256": digest, "bytes": len(body)},
@@ -402,20 +423,18 @@ def main(argv: list[str] | None = None) -> int:
     uri = f"kusuri://lan-export/1?h={host}&p={port}&c={code}"
     short = f"{host.rsplit('.', 1)[-1]}#{code}" if host.count(".") == 3 else f"{host}#{code}"
 
-    print("Kusuri 局域网导出接收端")
-    print(f"  地址(完整)  {host}:{port}#{code}")
-    print(f"  地址(短式)  {short}          ← 手机与本机同网段时用这个,更短")
-    print(f"  落盘目录    {out_dir}")
+    print(f"Kusuri 接收端 · 落盘 {out_dir}")
+    if host is None:
+        candidates = other_ipv4_candidates(primary=None)
+        print("  拿不到本机 IPv4(没连网?);手输时试这些地址:", "、".join(candidates) or "无")
+    else:
+        print(f"  手输  {short}   或  {host}:{port}#{code}")
     if args.idle_timeout > 0:
-        print(f"  空闲退出    {args.idle_timeout} 秒")
+        print(f"  空闲 {args.idle_timeout} 秒后自动退出")
     print()
-
-    others = other_ipv4_candidates(host)
-    if others:
-        print(f"  其它网卡(手机连不上时再试)  {'、'.join(others)}")
     if not args.no_qr:
         print_qr(uri, args.png)
-    print("等待手机推送…  Ctrl-C 退出")
+    print("等待推送…  Ctrl-C 退出")
     print()
 
     start_idle_watchdog(server, args.idle_timeout)

@@ -310,17 +310,17 @@
     <!-- 局域网导出(docs/lan-export.md):手机扫码/手输目标,把导出文件推给自己电脑上的接收脚本 -->
     <string name="title_lan_export">局域网导出</string>
     <string name="settings_backup_lan_export">局域网导出(扫码到电脑)</string>
-    <string name="lan_export_scan_hint">把电脑上脚本显示的二维码放进框内</string>
+    <string name="lan_export_scan_hint">对准电脑上的二维码</string>
     <string name="lan_export_torch_on">手电筒</string>
     <string name="lan_export_torch_off">关灯</string>
-    <string name="lan_export_manual_entry">手动输入地址</string>
+    <string name="lan_export_manual_entry">手动输入</string>
     <string name="lan_export_manual_label">电脑地址</string>
     <string name="lan_export_manual_placeholder">192.168.2.110:47821#K4F9M2</string>
     <string name="lan_export_manual_submit">确定</string>
-    <string name="lan_export_manual_hint">输入电脑上脚本打印的地址(口令在 # 后面)。同网段时可以直接写短式,例如 110#K4F9M2。</string>
-    <string name="lan_export_receiver_hint">电脑上先运行:uv run tools/kusuri-receive.py —— 它会把地址、口令和二维码都打出来。</string>
+    <string name="lan_export_manual_hint">口令写在 # 后面;同网段可只输短式,例如 110#K4F9M2。</string>
+    <string name="lan_export_qr_fallback">扫不到二维码?在电脑上加 --png /tmp/qr.png,打开那张图再扫。</string>
     <string name="lan_export_camera_denied_title">相机权限没开</string>
-    <string name="lan_export_camera_denied_body">扫码需要相机权限;不开也可以手动输入电脑上的地址。</string>
+    <string name="lan_export_camera_denied_body">扫码需要相机权限;不开也可以手动输入。</string>
     <string name="lan_export_grant_camera">授予相机权限</string>
     <string name="lan_export_open_settings">打开系统设置</string>
     <string name="lan_export_rescan">重新扫码</string>

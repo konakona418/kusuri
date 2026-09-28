@@ -6,9 +6,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import android.util.Size
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.view.CameraController
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
@@ -28,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -177,6 +184,7 @@ private fun CameraPanel(onDecoded: (String) -> Unit, onManualEntry: () -> Unit) 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val haptics = LocalHapticFeedback.current
+    val mainExecutor = remember { ContextCompat.getMainExecutor(context) }
     val controller = remember { LifecycleCameraController(context) }
 
     // 解出一个就定住:先让绿闪与震动被看见,再把目标交给状态机(相机随即释放)。
@@ -186,8 +194,15 @@ private fun CameraPanel(onDecoded: (String) -> Unit, onManualEntry: () -> Unit) 
     DisposableEffect(controller, lifecycleOwner) {
         val analyzerExecutor = Executors.newSingleThreadExecutor()
         controller.setEnabledUseCases(CameraController.IMAGE_ANALYSIS)
+        controller.setImageAnalysisResolutionSelector(ANALYSIS_RESOLUTION)
+        controller.setImageAnalysisBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
         controller.bindToLifecycle(lifecycleOwner)
-        controller.setImageAnalysisAnalyzer(analyzerExecutor, QrAnalyzer { text -> decoded = text })
+        // 分析跑在相机线程,状态必须回到主线程写:直接跨线程写 Compose 状态有概率触发不了重组,
+        // 表现就是"扫到了但没反应"。
+        controller.setImageAnalysisAnalyzer(
+            analyzerExecutor,
+            QrAnalyzer { text -> mainExecutor.execute { if (decoded == null) decoded = text } },
+        )
         onDispose {
             controller.clearImageAnalysisAnalyzer()
             controller.unbind()
@@ -217,33 +232,39 @@ private fun CameraPanel(onDecoded: (String) -> Unit, onManualEntry: () -> Unit) 
             },
         )
         ScanFrameOverlay(decoded = decoded != null, modifier = Modifier.fillMaxSize())
-        Column(
+        // 控制条自带底色:压暗层在它下面,文字用白色,不靠取景器画面提供对比度。
+        Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .fillMaxWidth(),
+            color = Color.Black.copy(alpha = 0.6f),
         ) {
-            Text(
-                text = stringResource(R.string.lan_export_scan_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.inverseOnSurface,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { torchOn = !torchOn }) {
-                    Text(
-                        text = stringResource(
-                            if (torchOn) R.string.lan_export_torch_off else R.string.lan_export_torch_on,
-                        ),
-                        color = MaterialTheme.colorScheme.inversePrimary,
-                    )
-                }
-                TextButton(onClick = onManualEntry) {
-                    Text(
-                        text = stringResource(R.string.lan_export_manual_entry),
-                        color = MaterialTheme.colorScheme.inversePrimary,
-                    )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.lan_export_scan_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    TextButton(onClick = { torchOn = !torchOn }) {
+                        Text(
+                            text = stringResource(
+                                if (torchOn) R.string.lan_export_torch_off else R.string.lan_export_torch_on,
+                            ),
+                            color = Color.White,
+                        )
+                    }
+                    TextButton(onClick = onManualEntry) {
+                        Text(
+                            text = stringResource(R.string.lan_export_manual_entry),
+                            color = Color.White,
+                        )
+                    }
                 }
             }
         }
@@ -325,7 +346,7 @@ private fun ManualEntryPanel(
             }
         }
         Text(
-            text = stringResource(R.string.lan_export_receiver_hint),
+            text = stringResource(R.string.lan_export_qr_fallback),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -531,3 +552,17 @@ private fun formatBytes(bytes: Long): String = when {
 
 /** 绿闪与震动先被看见,再切到"已识别目标"。 */
 private const val DECODED_FLASH_MS = 220L
+
+/**
+ * 二维码显示在电脑屏幕上时,画面里的像素本来就不多。
+ * 抬高分析分辨率,zxing 才有足够的分辨率可认(默认的 640×480 常常偏小)。
+ */
+private val ANALYSIS_RESOLUTION: ResolutionSelector = ResolutionSelector.Builder()
+    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+    .setResolutionStrategy(
+        ResolutionStrategy(
+            Size(1280, 960),
+            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+        ),
+    )
+    .build()
