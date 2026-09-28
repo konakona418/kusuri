@@ -44,10 +44,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import java.time.ZoneId
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.ExactAlarmPermissions
+import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
+import moe.lizi.kusuri.ui.components.DoseRecordDialog
+import moe.lizi.kusuri.ui.components.DoseStatusText
 
 @Composable
 fun TodayScreen(
@@ -62,6 +65,7 @@ fun TodayScreen(
     var exactAlarmsAllowed by remember {
         mutableStateOf(ExactAlarmPermissions.canScheduleExactAlarms(context))
     }
+    var backfillTarget by remember { mutableStateOf<TodayDoseItem?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -123,10 +127,30 @@ fun TodayScreen(
                         onClick = { onOpenMedication(item.medication.id) },
                         onTaken = { viewModel.markTaken(item) },
                         onSkip = { viewModel.markSkipped(item) },
+                        onBackfill = { backfillTarget = item },
                     )
                 }
             }
         }
+    }
+
+    backfillTarget?.let { item ->
+        DoseRecordDialog(
+            title = stringResource(
+                R.string.record_dialog_title,
+                item.medication.name,
+                formatTime(item.scheduledAt.atZone(ZoneId.systemDefault()).toLocalTime()),
+            ),
+            confirmLabel = stringResource(R.string.action_backfill),
+            initialActualAt = item.scheduledAt,
+            initialAction = DoseAction.TAKEN,
+            showActionChoice = false,
+            onDismiss = { backfillTarget = null },
+            onConfirm = { actualAt, _ ->
+                viewModel.backfill(item, actualAt)
+                backfillTarget = null
+            },
+        )
     }
 }
 
@@ -137,6 +161,7 @@ private fun DoseRow(
     onClick: () -> Unit,
     onTaken: () -> Unit,
     onSkip: () -> Unit,
+    onBackfill: () -> Unit,
 ) {
     val zone = ZoneId.systemDefault()
     val time = formatTime(item.scheduledAt.atZone(zone).toLocalTime())
@@ -172,36 +197,17 @@ private fun DoseRow(
                 }
 
                 DoseStatus.Overdue -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(R.string.status_overdue),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.weight(1f),
-                    )
+                    DoseStatusText(status, modifier = Modifier.weight(1f))
                     TextButton(onClick = onTaken) { Text(stringResource(R.string.action_taken)) }
                     TextButton(onClick = onSkip) { Text(stringResource(R.string.action_skip)) }
                 }
 
-                is DoseStatus.Taken -> Text(
-                    text = stringResource(
-                        R.string.status_taken_at,
-                        formatTime(status.actualAt.atZone(zone).toLocalTime()),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                is DoseStatus.Taken, DoseStatus.Skipped -> DoseStatusText(status)
 
-                DoseStatus.Skipped -> Text(
-                    text = stringResource(R.string.status_skipped),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                DoseStatus.Missed -> Text(
-                    text = stringResource(R.string.status_missed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                DoseStatus.Missed -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    DoseStatusText(status, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onBackfill) { Text(stringResource(R.string.action_backfill)) }
+                }
             }
         }
     }

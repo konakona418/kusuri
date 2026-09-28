@@ -144,6 +144,32 @@
     <string name="form_error_no_times">至少添加一个时间</string>
     <string name="form_error_end_before_start">不能早于开始日期</string>
 
+    <!-- 历史 -->
+    <string name="history_adherence_title">遵守率</string>
+    <string name="history_adherence_7d">近 7 天</string>
+    <string name="history_adherence_30d">近 30 天</string>
+    <string name="history_adherence_none">—</string>
+    <string name="history_empty">还没有可回顾的记录。</string>
+    <string name="history_today">今天</string>
+    <string name="history_yesterday">昨天</string>
+    <string name="history_day_label">%1$d月%2$d日 %3$s</string>
+    <string-array name="weekday_names">
+        <item>周一</item>
+        <item>周二</item>
+        <item>周三</item>
+        <item>周四</item>
+        <item>周五</item>
+        <item>周六</item>
+        <item>周日</item>
+    </string-array>
+
+    <!-- 记录编辑与补记 -->
+    <string name="record_dialog_title">%1$s · 计划 %2$s</string>
+    <string name="record_dialog_actual_date">实际日期</string>
+    <string name="record_dialog_actual_time">实际时间</string>
+    <string name="record_dialog_delete">删除记录</string>
+    <string name="action_backfill">补记</string>
+
     <!-- 无障碍描述 -->
     <string name="cd_add_medication">添加药物</string>
     <string name="cd_back">返回</string>

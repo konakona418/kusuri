@@ -68,6 +68,12 @@ class TodayViewModel(
 
     fun markSkipped(item: TodayDoseItem) = record(item, DoseAction.SKIPPED)
 
+    fun backfill(item: TodayDoseItem, actualAt: Instant) {
+        viewModelScope.launch {
+            recordDose.backfill(item.medication.id, item.scheduledAt, actualAt)
+        }
+    }
+
     private fun record(item: TodayDoseItem, action: DoseAction) {
         viewModelScope.launch {
             recordDose.record(item.medication.id, item.scheduledAt, action, DoseSource.IN_APP)
