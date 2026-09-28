@@ -20,6 +20,7 @@ import moe.lizi.kusuri.data.RoomMedicationRepository
 import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.data.backup.BackupService
 import moe.lizi.kusuri.data.db.KusuriDatabase
+import moe.lizi.kusuri.data.lan.LanExportClient
 import moe.lizi.kusuri.domain.CheckLowStockUseCase
 import moe.lizi.kusuri.domain.CompleteFinishedCoursesUseCase
 import moe.lizi.kusuri.domain.DoseRecordRepository
@@ -55,6 +56,8 @@ class AppContainer(context: Context) {
     val settingsRepository: SettingsRepository by lazy { SettingsRepository(appContext) }
 
     val backupService: BackupService by lazy { BackupService(appContext, database, clock) }
+
+    val lanExportClient: LanExportClient = LanExportClient()
 
     val doseNotifier: DoseNotifier by lazy { DoseNotifier(appContext, settingsRepository) }
 

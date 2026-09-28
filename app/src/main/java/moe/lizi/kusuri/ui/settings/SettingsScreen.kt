@@ -41,9 +41,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.ReliabilityChecks
 import moe.lizi.kusuri.data.SettingsRepository
-import moe.lizi.kusuri.data.backup.CsvLabels
+import moe.lizi.kusuri.data.backup.CsvRange
 import moe.lizi.kusuri.ui.AppViewModelProvider
+import moe.lizi.kusuri.ui.components.CsvRangeDialog
 import moe.lizi.kusuri.ui.components.OnboardingDialog
+import moe.lizi.kusuri.ui.components.backupCsvLabels
 import moe.lizi.kusuri.ui.components.ReliabilityRow
 import moe.lizi.kusuri.ui.components.SettingRow
 import moe.lizi.kusuri.ui.components.LongPressDeleteLabel
@@ -51,6 +53,7 @@ import moe.lizi.kusuri.ui.components.rememberReliabilityState
 
 @Composable
 fun SettingsScreen(
+    onOpenLanExport: () -> Unit,
     viewModel: SettingsViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val context = LocalContext.current
@@ -69,34 +72,7 @@ fun SettingsScreen(
         ActivityResultContracts.RequestPermission(),
     ) { /* 回到前台后 rememberReliabilityState 会重新读取 */ }
 
-    val csvLabels = CsvLabels(
-        doseSectionTitle = stringResource(R.string.csv_section_doses),
-        doseHeader = listOf(
-            stringResource(R.string.csv_header_medication),
-            stringResource(R.string.csv_header_dose),
-            stringResource(R.string.csv_header_scheduled_at),
-            stringResource(R.string.csv_header_actual_at),
-            stringResource(R.string.csv_header_status),
-            stringResource(R.string.csv_header_source),
-        ),
-        taken = stringResource(R.string.action_taken),
-        skipped = stringResource(R.string.action_skip),
-        sourceInApp = stringResource(R.string.csv_source_in_app),
-        sourceNotification = stringResource(R.string.csv_source_notification),
-        sourceBackfill = stringResource(R.string.csv_source_backfill),
-        logSectionTitle = stringResource(R.string.csv_section_logs),
-        logHeader = listOf(
-            stringResource(R.string.csv_log_header_time),
-            stringResource(R.string.csv_log_header_type),
-            stringResource(R.string.csv_log_header_symptom),
-            stringResource(R.string.csv_log_header_severity),
-            stringResource(R.string.csv_log_header_medication),
-            stringResource(R.string.csv_log_header_note),
-        ),
-        logTypeSymptom = stringResource(R.string.log_type_symptom),
-        logTypeNote = stringResource(R.string.log_type_note),
-        logLinkedNone = stringResource(R.string.log_link_none),
-    )
+    val csvLabels = backupCsvLabels()
 
     val exportCsvLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/csv"),
@@ -178,6 +154,12 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        OutlinedButton(
+            onClick = onOpenLanExport,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.settings_backup_lan_export))
+        }
         OutlinedButton(
             onClick = { showCsvRangeDialog = true },
             modifier = Modifier.fillMaxWidth(),
@@ -301,38 +283,6 @@ fun SettingsScreen(
             },
         )
     }
-}
-
-@Composable
-private fun CsvRangeDialog(onDismiss: () -> Unit, onConfirm: (CsvRange) -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.csv_range_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CsvRange.entries.forEach { range ->
-                    OutlinedButton(
-                        onClick = { onConfirm(range) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(csvRangeLabel(range))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
-            }
-        },
-    )
-}
-
-@Composable
-private fun csvRangeLabel(range: CsvRange): String = when (range) {
-    CsvRange.LAST_30_DAYS -> stringResource(R.string.csv_range_30)
-    CsvRange.LAST_90_DAYS -> stringResource(R.string.csv_range_90)
-    CsvRange.ALL -> stringResource(R.string.csv_range_all)
 }
 
 @Composable

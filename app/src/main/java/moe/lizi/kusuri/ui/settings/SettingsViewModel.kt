@@ -4,15 +4,15 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.Clock
-import java.time.Duration
-import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.data.backup.BackupService
+import moe.lizi.kusuri.data.backup.CsvRange
 import moe.lizi.kusuri.data.backup.CsvLabels
+import moe.lizi.kusuri.data.backup.window
 import moe.lizi.kusuri.domain.WipeAllDataUseCase
 
 sealed interface BackupStatus {
@@ -22,9 +22,6 @@ sealed interface BackupStatus {
     data object Wiped : BackupStatus
     data object Failed : BackupStatus
 }
-
-/** CSV 导出的时间区间(docs/plan.md §8:CSV 按时间区间,给医生看)。 */
-enum class CsvRange { LAST_30_DAYS, LAST_90_DAYS, ALL }
 
 class SettingsViewModel(
     private val settings: SettingsRepository,
@@ -52,12 +49,7 @@ class SettingsViewModel(
 
     fun exportCsv(uri: Uri, labels: CsvLabels, range: CsvRange) {
         runCatchingAsync {
-            val to = clock.instant()
-            val from = when (range) {
-                CsvRange.LAST_30_DAYS -> to.minus(Duration.ofDays(30))
-                CsvRange.LAST_90_DAYS -> to.minus(Duration.ofDays(90))
-                CsvRange.ALL -> Instant.EPOCH
-            }
+            val (from, to) = range.window(clock.instant())
             backupService.writeText(uri, backupService.exportCsv(from, to, labels))
             BackupStatus.CsvExported
         }

@@ -36,6 +36,7 @@ import moe.lizi.kusuri.R
 import moe.lizi.kusuri.ui.components.OnboardingDialog
 import moe.lizi.kusuri.ui.history.HistoryScreen
 import moe.lizi.kusuri.ui.log.LogScreen
+import moe.lizi.kusuri.ui.lanexport.LanExportScreen
 import moe.lizi.kusuri.ui.medications.MedicationDetailScreen
 import moe.lizi.kusuri.ui.medications.MedicationEditScreen
 import moe.lizi.kusuri.ui.medications.MedicationListScreen
@@ -49,6 +50,7 @@ object Routes {
     const val MEDICATIONS = "medications"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
+    const val LAN_EXPORT = "settings/lan-export"
 
     const val MEDICATION_DETAIL = "medications/detail/{medicationId}"
     const val MEDICATION_NEW = "medications/new"
@@ -128,7 +130,12 @@ fun KusuriApp(navController: NavHostController = rememberNavController()) {
                 HistoryScreen()
             }
             composable(Routes.SETTINGS) {
-                SettingsScreen()
+                SettingsScreen(
+                    onOpenLanExport = { navController.navigate(Routes.LAN_EXPORT) },
+                )
+            }
+            composable(Routes.LAN_EXPORT) {
+                LanExportScreen()
             }
             composable(
                 route = Routes.MEDICATION_DETAIL,
@@ -170,6 +177,7 @@ private fun KusuriTopBar(route: String?, onBack: () -> Unit, onSettings: () -> U
         Routes.MEDICATIONS -> stringResource(R.string.tab_medications)
         Routes.HISTORY -> stringResource(R.string.tab_history)
         Routes.SETTINGS -> stringResource(R.string.title_settings)
+        Routes.LAN_EXPORT -> stringResource(R.string.title_lan_export)
         Routes.MEDICATION_NEW -> stringResource(R.string.title_medication_new)
         Routes.MEDICATION_EDIT -> stringResource(R.string.title_medication_edit)
         Routes.MEDICATION_DETAIL -> stringResource(R.string.title_medication_detail)

@@ -33,10 +33,12 @@
 - R8 只能靠真机冒烟验证:每次发布前跑一遍下面的清单。
 
 ## 发布前检查清单
-- [ ] 不含 `INTERNET` 权限(`aapt dump permissions app-release.apk` 应无 `android.permission.INTERNET`)
+- [ ] 权限清单符合预期:`aapt dump permissions app-release.apk` 应只有通知/闹钟/开机/震动/相机/网络
 - [ ] 真机:通知权限、精确闹钟、电池优化向导可走完
 - [ ] 真机:新建药物 → 提醒 → 通知三动作(已服用/稍后/跳过)
 - [ ] 真机:重启手机后提醒仍有效
 - [ ] 导出 JSON → 清数据/换机 → 导入,数据一致
 - [ ] 导出 CSV 可在表格软件中打开(中文表头、CRLF)
+- [ ] 局域网导出:`uv run tools/kusuri-receive.py` → 手机扫码发送 JSON 与 CSV → 电脑落盘路径与 sha256 一致,且落盘文件能导回手机
+- [ ] 局域网导出:相机权限拒绝后,手输路径仍可用
 - [ ] `versionCode` 已递增

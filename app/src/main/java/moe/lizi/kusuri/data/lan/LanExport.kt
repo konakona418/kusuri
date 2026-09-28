@@ -81,6 +81,9 @@ sealed interface LanExportFailure {
 
     /** 电脑说成功了,但校验值对不上——数据在链路上被改过,必须当成失败看待。 */
     data class IntegrityMismatch(val expected: String, val actual: String) : LanExportFailure
+
+    /** 本地就没导出成功(数据库或序列化出问题),一个字节都没发出去。 */
+    data class LocalError(val detail: String) : LanExportFailure
 }
 
 /** 推送结果。 */

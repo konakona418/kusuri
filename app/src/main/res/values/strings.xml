@@ -67,7 +67,7 @@
     <!-- 占位与设置 -->
     <string name="placeholder_coming_soon">功能开发中</string>
     <string name="settings_about_title">关于</string>
-    <string name="settings_about_body">Kusuri(薬)是一个个人用药提醒与记录应用,完全离线、无遥测。吃完药就睡觉吧。</string>
+    <string name="settings_about_body">Kusuri(薬)是一个个人用药提醒与记录应用,无遥测,数据只保存在你的设备上。吃完药就睡觉吧。</string>
 
     <!-- 可靠性检查与设置 -->
     <string name="settings_section_reliability">提醒健康检查</string>
@@ -87,7 +87,7 @@
 
     <!-- 备份与导出 -->
     <string name="settings_section_backup">备份与导出</string>
-    <string name="settings_backup_description">数据只保存在本机;导出与导入都通过系统文件选择器,全程无网络。</string>
+    <string name="settings_backup_description">数据只保存在本机。导出与导入通过系统文件选择器;也可以在你手动开启时经局域网直连你自己的电脑(不经任何服务器)。</string>
     <string name="backup_export_csv">导出服药记录(CSV)</string>
     <string name="csv_range_title">导出时间范围</string>
     <string name="csv_range_30">近 30 天</string>
@@ -306,6 +306,54 @@
     <string name="record_dialog_actual_time">实际时间</string>
     <string name="record_dialog_delete">删除记录</string>
     <string name="action_backfill">补记</string>
+
+    <!-- 局域网导出(docs/lan-export.md):手机扫码/手输目标,把导出文件推给自己电脑上的接收脚本 -->
+    <string name="title_lan_export">局域网导出</string>
+    <string name="settings_backup_lan_export">局域网导出(扫码到电脑)</string>
+    <string name="lan_export_scan_hint">把电脑上脚本显示的二维码放进框内</string>
+    <string name="lan_export_torch_on">手电筒</string>
+    <string name="lan_export_torch_off">关灯</string>
+    <string name="lan_export_manual_entry">手动输入地址</string>
+    <string name="lan_export_manual_label">电脑地址</string>
+    <string name="lan_export_manual_placeholder">192.168.2.110:47821#K4F9M2</string>
+    <string name="lan_export_manual_submit">确定</string>
+    <string name="lan_export_manual_hint">输入电脑上脚本打印的地址(口令在 # 后面)。同网段时可以直接写短式,例如 110#K4F9M2。</string>
+    <string name="lan_export_receiver_hint">电脑上先运行:uv run tools/kusuri-receive.py —— 它会把地址、口令和二维码都打出来。</string>
+    <string name="lan_export_camera_denied_title">相机权限没开</string>
+    <string name="lan_export_camera_denied_body">扫码需要相机权限;不开也可以手动输入电脑上的地址。</string>
+    <string name="lan_export_grant_camera">授予相机权限</string>
+    <string name="lan_export_open_settings">打开系统设置</string>
+    <string name="lan_export_rescan">重新扫码</string>
+    <string name="lan_export_unparsed_title">这个二维码用不了</string>
+    <string name="lan_export_failed_title">发送失败</string>
+    <string name="lan_export_target">目标电脑:%1$s</string>
+    <string name="lan_export_target_code">口令 %1$s</string>
+    <string name="lan_export_send_json">发送完整备份(JSON)</string>
+    <string name="lan_export_send_csv">发送服药记录(CSV)…</string>
+    <string name="lan_export_sending">正在发送到 %1$s…</string>
+    <string name="lan_export_kind_json">完整备份(JSON)</string>
+    <string name="lan_export_kind_csv">服药记录(CSV)</string>
+    <string name="lan_export_sent_title">已发送到 %1$s</string>
+    <string name="lan_export_sent_saved">电脑上保存到:%1$s</string>
+    <string name="lan_export_sent_verified">校验一致 · %1$s · sha256 %2$s</string>
+    <string name="lan_export_retry">重试</string>
+    <string name="lan_export_not_kusuri">这不是 Kusuri 导出的二维码。请扫电脑上脚本打印的那个码。</string>
+    <string name="lan_export_unsupported_version">这个二维码来自更新的版本,请先更新 Kusuri。</string>
+    <string name="lan_export_needs_local_address">短式地址需要手机的网络信息;请改输完整地址,例如 192.168.2.110:47821#K4F9M2。</string>
+    <string name="lan_export_invalid">地址格式不对。应该是 192.168.2.110:47821#口令(同网段可写短式 110#口令)。</string>
+    <string name="lan_export_error_refused">连不上 %1$s:电脑上没有在监听。确认脚本在运行,且防火墙放行 %2$d 端口。</string>
+    <string name="lan_export_error_no_route">连不上 %1$s:手机和电脑不在同一个网络。</string>
+    <string name="lan_export_error_unknown_host">地址不合法。</string>
+    <string name="lan_export_error_dropped">连接中途断了(发送被打断或 Wi-Fi 掉线)。</string>
+    <string name="lan_export_error_other">连不上 %1$s:%2$s</string>
+    <string name="lan_export_error_timeout_connect">连接超时。确认电脑地址,并让两端连同一个 Wi-Fi。</string>
+    <string name="lan_export_error_timeout_read">电脑没有响应。</string>
+    <string name="lan_export_error_bad_code">口令不匹配。脚本重启会换口令,请重新扫码。</string>
+    <string name="lan_export_error_too_large">文件太大,超过 32MB。</string>
+    <string name="lan_export_error_rejected">电脑拒收了这次发送(%1$d %2$s)。</string>
+    <string name="lan_export_error_bad_response">电脑的应答看不懂:对面可能不是 Kusuri 的接收脚本。</string>
+    <string name="lan_export_error_integrity">电脑上落盘的内容与发送的不一致,请重新发送。</string>
+    <string name="lan_export_error_local">本地导出失败:%1$s</string>
 
     <!-- 无障碍描述 -->
     <string name="cd_add_medication">添加药物</string>

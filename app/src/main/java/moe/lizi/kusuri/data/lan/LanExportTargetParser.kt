@@ -56,7 +56,7 @@ fun localIpv4Address(): String? = runCatching {
         .asSequence()
         .filter { it.isUp && !it.isLoopback }
         .flatMap { it.inetAddresses.asSequence() }
-        .map { it.hostAddress }
+        .mapNotNull { it.hostAddress }
         .firstOrNull { address -> isIpv4Literal(address) && isSiteLocal(address) }
 }.getOrNull()
 

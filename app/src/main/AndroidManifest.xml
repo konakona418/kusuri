@@ -7,6 +7,20 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!--
+      局域网导出(docs/lan-export.md):INTERNET 只用于你手动开启的那次推送,
+      直连你自己输入的电脑地址;应用不含任何主动外联代码、没有服务器地址。
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 扫电脑上脚本显示的二维码;运行时申请,拒绝后仍可手输地址。 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- 没有相机的设备照样能装:扫码不可用,手输与其余功能照常。 -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <application
         android:name=".KusuriApplication"
         android:allowBackup="true"
