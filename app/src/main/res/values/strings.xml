@@ -1,3 +1,126 @@
 <resources>
     <string name="app_name">Kusuri</string>
+
+    <!-- 标签与标题 -->
+    <string name="tab_today">今日</string>
+    <string name="tab_medications">药物</string>
+    <string name="tab_history">历史</string>
+    <string name="title_settings">设置</string>
+    <string name="title_medication_detail">药物详情</string>
+    <string name="title_medication_new">添加药物</string>
+    <string name="title_medication_edit">编辑药物</string>
+
+    <!-- 通用动作 -->
+    <string name="action_back">返回</string>
+    <string name="action_settings">设置</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_delete">删除</string>
+    <string name="action_archive">归档</string>
+    <string name="action_refill">补货</string>
+    <string name="action_add_medication">添加药物</string>
+
+    <!-- 占位与设置 -->
+    <string name="placeholder_coming_soon">功能开发中</string>
+    <string name="settings_about_title">关于</string>
+    <string name="settings_about_body">Kusuri 完全离线、无遥测,所有数据只保存在你的设备上。</string>
+    <string name="settings_coming_soon">更多设置项将在后续开发中加入。</string>
+
+    <!-- 药物列表 -->
+    <string name="medications_empty_title">还没有药物</string>
+    <string name="medications_empty_body">点右下角的加号,添加你正在服用的药物。</string>
+    <string name="medications_completed_section">已完成</string>
+    <string name="medication_status_completed">已完成</string>
+
+    <!-- 排程摘要 -->
+    <string name="schedule_daily_times">每天 %1$s</string>
+    <string name="schedule_interval_hours">每 %1$d 小时</string>
+    <string name="schedule_interval_days">每 %1$d 天</string>
+    <string name="schedule_prn">按需</string>
+    <string name="detail_interval_anchor">从 %1$s 开始</string>
+    <string name="detail_prn_min_interval">最少间隔 %1$s</string>
+    <string name="detail_prn_max_per_day">每日最多 %1$d 次</string>
+
+    <!-- 时长与日期 -->
+    <string name="duration_hours">%1$d 小时</string>
+    <string name="duration_minutes">%1$d 分钟</string>
+
+    <!-- 库存 -->
+    <string name="stock_remaining">剩余 %1$s %2$s</string>
+    <string name="stock_low">库存不足</string>
+    <string name="detail_threshold">低于 %1$s %2$s 时提醒补药</string>
+
+    <!-- 餐时标签 -->
+    <string name="meal_before">饭前</string>
+    <string name="meal_after">饭后</string>
+    <string name="meal_with">随餐</string>
+
+    <!-- 疗程 -->
+    <string name="course_until">疗程至 %1$s</string>
+    <string name="course_range">%1$s 至 %2$s</string>
+    <string name="course_long_term">长期服用</string>
+
+    <!-- 详情 -->
+    <string name="detail_section_schedule">服用安排</string>
+    <string name="detail_section_course">疗程</string>
+    <string name="detail_section_stock">库存</string>
+    <string name="detail_section_notes">备注</string>
+    <string name="detail_dose">每次 %1$s %2$s</string>
+
+    <!-- 补货 -->
+    <string name="refill_dialog_title">补货</string>
+    <string name="refill_amount_label">补货数量</string>
+    <string name="refill_confirm">确认补货</string>
+
+    <!-- 删除确认 -->
+    <string name="delete_dialog_title">删除“%1$s”?</string>
+    <string name="delete_dialog_body">将同时删除该药物的全部记录,且无法恢复。</string>
+
+    <!-- 表单 -->
+    <string name="form_section_basic">基本信息</string>
+    <string name="form_name">药物名称</string>
+    <string name="form_unit">单位</string>
+    <string name="form_unit_hint">如:粒、片、ml</string>
+    <string name="form_dose">每次服用量</string>
+    <string name="form_meal_tag">服用时机</string>
+    <string name="form_meal_none">无</string>
+    <string name="form_section_schedule">服用安排</string>
+    <string name="form_mode_daily">每天</string>
+    <string name="form_mode_interval">间隔</string>
+    <string name="form_mode_prn">按需</string>
+    <string name="form_times">提醒时间</string>
+    <string name="form_add_time">添加时间</string>
+    <string name="form_interval_every">每隔</string>
+    <string name="form_interval_unit_hours">小时</string>
+    <string name="form_interval_unit_days">天</string>
+    <string name="form_interval_anchor_time">首次时刻</string>
+    <string name="form_interval_anchor_date">首次日期</string>
+    <string name="form_prn_min_interval">最少间隔(分钟)</string>
+    <string name="form_prn_max_per_day">每日上限(次)</string>
+    <string name="form_prn_optional">选填;留空则不检查</string>
+    <string name="form_section_course">疗程</string>
+    <string name="form_course_start">开始日期</string>
+    <string name="form_course_has_end">设置结束日期</string>
+    <string name="form_course_end">结束日期</string>
+    <string name="form_section_stock">库存</string>
+    <string name="form_initial_stock">当前数量</string>
+    <string name="form_threshold">低于多少提醒补药</string>
+    <string name="form_section_notes">备注</string>
+    <string name="form_notes_hint">如:随餐、医生叮嘱…</string>
+
+    <!-- 表单错误 -->
+    <string name="form_error_required">必填</string>
+    <string name="form_error_invalid_number">请输入数字</string>
+    <string name="form_error_positive">需大于 0</string>
+    <string name="form_error_non_negative">不能小于 0</string>
+    <string name="form_error_no_times">至少添加一个时间</string>
+    <string name="form_error_end_before_start">不能早于开始日期</string>
+
+    <!-- 无障碍描述 -->
+    <string name="cd_add_medication">添加药物</string>
+    <string name="cd_back">返回</string>
+    <string name="cd_settings">设置</string>
+    <string name="cd_remove_time">移除时间</string>
 </resources>
