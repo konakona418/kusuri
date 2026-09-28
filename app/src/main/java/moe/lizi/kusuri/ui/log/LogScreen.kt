@@ -1,12 +1,14 @@
 package moe.lizi.kusuri.ui.log
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -174,48 +177,63 @@ private fun LogEntryCard(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.width(56.dp),
             )
+            val muted = MaterialTheme.colorScheme.onSurfaceVariant
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                when (entry.type) {
-                    LogEntryType.SYMPTOM -> Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(entry.symptom.orEmpty(), style = MaterialTheme.typography.titleSmall)
-                        entry.severity?.let { severity ->
+                // 标题行:症状名 / 随笔正文(都完整显示),右侧是各自的标记。
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = when (entry.type) {
+                            LogEntryType.SYMPTOM -> entry.symptom.orEmpty()
+                            LogEntryType.NOTE -> entry.note.orEmpty()
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    when (entry.type) {
+                        LogEntryType.SYMPTOM -> entry.severity?.let { severity ->
                             Text(
                                 text = severityDots(severity),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
-                        if (onTrend != null) {
-                            TextButton(onClick = onTrend) {
-                                Text(stringResource(R.string.log_trend))
-                            }
-                        }
-                    }
 
-                    LogEntryType.NOTE -> Text(
-                        text = stringResource(R.string.log_type_note),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                    )
+                        LogEntryType.NOTE -> Text(
+                            text = stringResource(R.string.log_type_note),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = muted,
+                        )
+                    }
                 }
-                entry.note?.let { note ->
-                    Text(
-                        text = note,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                if (entry.type == LogEntryType.SYMPTOM) {
+                    entry.note?.let { note ->
+                        Text(
+                            text = note,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = muted,
+                        )
+                    }
                 }
                 medicationName?.let { name ->
                     Text(
                         text = stringResource(R.string.log_linked_to, name),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = muted,
+                    )
+                }
+                if (onTrend != null) {
+                    Text(
+                        text = stringResource(R.string.log_trend),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.small)
+                            .clickable(onClick = onTrend)
+                            .padding(end = 12.dp, top = 8.dp, bottom = 8.dp),
                     )
                 }
             }
