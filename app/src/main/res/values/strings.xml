@@ -64,7 +64,7 @@
     <!-- 占位与设置 -->
     <string name="placeholder_coming_soon">功能开发中</string>
     <string name="settings_about_title">关于</string>
-    <string name="settings_about_body">Kusuri 完全离线、无遥测,所有数据只保存在你的设备上。</string>
+    <string name="settings_about_body">Kusuri(薬)是一个个人用药提醒与记录应用,完全离线、无遥测。吃完药就睡觉吧。</string>
 
     <!-- 可靠性检查与设置 -->
     <string name="settings_section_reliability">提醒健康检查</string>
@@ -76,7 +76,7 @@
     <string name="reliability_pending">待处理</string>
     <string name="settings_section_general">常规</string>
     <string name="settings_reminder_sound">提醒声音与震动</string>
-    <string name="settings_reminder_sound_description">默认关闭:只显示通知。打开后按计划响铃并震动。</string>
+    <string name="settings_reminder_sound_description">默认开启:按计划响铃并震动(普通通知)。关闭后只显示通知。</string>
     <string name="settings_grace_period">宽限窗口</string>
     <string name="settings_grace_period_value">%1$d 小时</string>
     <string name="grace_dialog_title">宽限窗口</string>

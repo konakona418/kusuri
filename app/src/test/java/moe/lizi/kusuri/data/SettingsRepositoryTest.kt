@@ -15,10 +15,10 @@ class SettingsRepositoryTest {
     private fun repository() = SettingsRepository(ApplicationProvider.getApplicationContext<Context>())
 
     @Test
-    fun `defaults are quiet notifications, two-hour grace and no onboarding`() {
+    fun `defaults are audible reminders, two-hour grace and no onboarding`() {
         val settings = repository()
 
-        assertFalse(settings.reminderSoundEnabled.value)
+        assertTrue(settings.reminderSoundEnabled.value)
         assertEquals(2, settings.gracePeriodHours.value)
         assertFalse(settings.onboardingDone.value)
     }
@@ -38,10 +38,10 @@ class SettingsRepositoryTest {
     fun `toggles are persisted in the observed state`() {
         val settings = repository()
 
-        settings.setReminderSoundEnabled(true)
+        settings.setReminderSoundEnabled(false)
         settings.setOnboardingDone(true)
 
-        assertTrue(settings.reminderSoundEnabled.value)
+        assertFalse(settings.reminderSoundEnabled.value)
         assertTrue(settings.onboardingDone.value)
     }
 }

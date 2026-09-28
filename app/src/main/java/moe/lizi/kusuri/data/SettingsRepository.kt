@@ -20,7 +20,7 @@ class SettingsRepository(context: Context) {
     private val _onboardingDone = MutableStateFlow(prefs.getBoolean(KEY_ONBOARDING_DONE, false))
     val onboardingDone: StateFlow<Boolean> = _onboardingDone.asStateFlow()
 
-    private val _reminderSoundEnabled = MutableStateFlow(prefs.getBoolean(KEY_REMINDER_SOUND, false))
+    private val _reminderSoundEnabled = MutableStateFlow(prefs.getBoolean(KEY_REMINDER_SOUND, true))
     val reminderSoundEnabled: StateFlow<Boolean> = _reminderSoundEnabled.asStateFlow()
 
     fun setGracePeriodHours(hours: Int) {
@@ -34,7 +34,7 @@ class SettingsRepository(context: Context) {
         _onboardingDone.value = done
     }
 
-    /** 提醒声音与震动:默认关闭,只显示通知(docs/plan.md §4.1)。 */
+    /** 提醒声音与震动:默认开启(普通通知音量,非闹钟式),可一键切回静音(docs/plan.md §4.1)。 */
     fun setReminderSoundEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_REMINDER_SOUND, enabled).apply()
         _reminderSoundEnabled.value = enabled
