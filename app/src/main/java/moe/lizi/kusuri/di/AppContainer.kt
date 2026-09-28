@@ -15,6 +15,7 @@ import moe.lizi.kusuri.alarm.AlarmReminderScheduler
 import moe.lizi.kusuri.alarm.DoseNotifier
 import moe.lizi.kusuri.alarm.ReminderMaintenanceWorker
 import moe.lizi.kusuri.data.RoomDoseRecordRepository
+import moe.lizi.kusuri.data.RoomLogEntryRepository
 import moe.lizi.kusuri.data.RoomMedicationRepository
 import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.data.backup.BackupService
@@ -22,6 +23,7 @@ import moe.lizi.kusuri.data.db.KusuriDatabase
 import moe.lizi.kusuri.domain.CheckLowStockUseCase
 import moe.lizi.kusuri.domain.CompleteFinishedCoursesUseCase
 import moe.lizi.kusuri.domain.DoseRecordRepository
+import moe.lizi.kusuri.domain.LogEntryRepository
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.RecordDoseUseCase
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
@@ -43,6 +45,10 @@ class AppContainer(context: Context) {
 
     val doseRecordRepository: DoseRecordRepository by lazy {
         RoomDoseRecordRepository(database, clock)
+    }
+
+    val logEntryRepository: LogEntryRepository by lazy {
+        RoomLogEntryRepository(database)
     }
 
     val settingsRepository: SettingsRepository by lazy { SettingsRepository(appContext) }

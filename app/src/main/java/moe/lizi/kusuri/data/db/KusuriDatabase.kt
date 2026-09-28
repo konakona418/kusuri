@@ -13,8 +13,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MedicationTimeEntity::class,
         StockEventEntity::class,
         DoseRecordEntity::class,
+        LogEntryEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class KusuriDatabase : RoomDatabase() {
@@ -22,6 +23,8 @@ abstract class KusuriDatabase : RoomDatabase() {
     abstract fun medicationDao(): MedicationDao
 
     abstract fun doseRecordDao(): DoseRecordDao
+
+    abstract fun logEntryDao(): LogEntryDao
 
     companion object {
         const val NAME = "kusuri.db"
@@ -37,9 +40,34 @@ abstract class KusuriDatabase : RoomDatabase() {
             }
         }
 
+        /** v3:日志条目(症状/随手记);删除药物时日志保留(medicationId 置空)。 */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `log_entries` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`type` TEXT NOT NULL, " +
+                        "`at` INTEGER NOT NULL, " +
+                        "`symptom` TEXT, " +
+                        "`severity` INTEGER, " +
+                        "`medicationId` INTEGER, " +
+                        "`note` TEXT, " +
+                        "FOREIGN KEY(`medicationId`) REFERENCES `medications`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE SET NULL)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_log_entries_at` ON `log_entries` (`at`)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_log_entries_medicationId` " +
+                        "ON `log_entries` (`medicationId`)",
+                )
+            }
+        }
+
         fun build(context: Context): KusuriDatabase =
             Room.databaseBuilder(context, KusuriDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }

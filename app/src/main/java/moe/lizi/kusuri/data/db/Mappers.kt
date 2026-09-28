@@ -8,6 +8,8 @@ import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseRecord
 import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.IntervalUnit
+import moe.lizi.kusuri.domain.model.LogEntry
+import moe.lizi.kusuri.domain.model.LogEntryType
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -98,4 +100,24 @@ internal fun DoseRecordEntity.toDomain(): DoseRecord = DoseRecord(
     amount = amount,
     action = DoseAction.valueOf(action),
     source = DoseSource.valueOf(source),
+)
+
+internal fun LogEntryEntity.toDomain(): LogEntry = LogEntry(
+    id = id,
+    type = LogEntryType.valueOf(type),
+    at = Instant.ofEpochMilli(at),
+    symptom = symptom,
+    severity = severity,
+    medicationId = medicationId,
+    note = note,
+)
+
+internal fun LogEntry.toEntity(): LogEntryEntity = LogEntryEntity(
+    id = id,
+    type = type.name,
+    at = at.toEpochMilli(),
+    symptom = symptom,
+    severity = severity,
+    medicationId = medicationId,
+    note = note,
 )
