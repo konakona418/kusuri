@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 一枚斜置的白色药丸(胶囊):极简,纯色底 + 单一图形。 -->
+<!-- 主题化图标(Android 13+):仅药丸轮廓。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -12,8 +12,5 @@
         <path
             android:fillColor="#FFFFFF"
             android:pathData="M42,43h24a11,11 0 0 1 0,22h-24a11,11 0 0 1 0,-22z" />
-        <path
-            android:fillColor="#33000000"
-            android:pathData="M53.25,43h1.5v22h-1.5z" />
     </group>
 </vector>
