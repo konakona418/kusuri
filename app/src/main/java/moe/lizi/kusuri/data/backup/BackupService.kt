@@ -8,6 +8,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import moe.lizi.kusuri.data.db.KusuriDatabase
+import moe.lizi.kusuri.domain.model.DoseAction
+import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.util.formatAmount
 
 /** 导出 CSV 需要本地化的标签,由界面(资源)提供,数据层不依赖 strings.xml。 */
@@ -68,13 +70,15 @@ class BackupService(
             .sortedBy { it.actualAt }
             .map { record ->
                 val medication = medications[record.medicationId]
+                val action = runCatching { DoseAction.valueOf(record.action) }.getOrNull()
+                val source = runCatching { DoseSource.valueOf(record.source) }.getOrNull()
                 listOf(
                     medication?.name.orEmpty(),
                     "${formatAmount(record.amount)} ${medication?.unit.orEmpty()}".trim(),
                     formatInstant(record.scheduledAt, zone),
                     formatInstant(record.actualAt, zone),
-                    if (record.action == "TAKEN") labels.taken else labels.skipped,
-                    sourceLabel(record.source, labels),
+                    if (action == DoseAction.TAKEN) labels.taken else labels.skipped,
+                    sourceLabel(source, labels),
                 )
             }
         return toCsv(labels.header, rows)
@@ -92,9 +96,9 @@ class BackupService(
         return stream.use { it.readBytes().toString(Charsets.UTF_8) }
     }
 
-    private fun sourceLabel(source: String, labels: CsvLabels): String = when (source) {
-        "NOTIFICATION" -> labels.sourceNotification
-        "BACKFILL" -> labels.sourceBackfill
+    private fun sourceLabel(source: DoseSource?, labels: CsvLabels): String = when (source) {
+        DoseSource.NOTIFICATION -> labels.sourceNotification
+        DoseSource.BACKFILL -> labels.sourceBackfill
         else -> labels.sourceInApp
     }
 

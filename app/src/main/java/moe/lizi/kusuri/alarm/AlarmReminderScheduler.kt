@@ -33,7 +33,12 @@ class AlarmReminderScheduler(
     fun rescheduleAll(medications: List<Medication>) {
         medications.forEach { medication ->
             cancelReminder(medication.id)
-            if (medication.status == MedicationStatus.ACTIVE) scheduleNext(medication)
+            if (medication.status == MedicationStatus.ACTIVE) {
+                scheduleNext(medication)
+            } else {
+                // 巡检的一部分:归档/完成的药物不应再挂着提醒通知。
+                notifier.cancel(medication.id)
+            }
         }
     }
 
