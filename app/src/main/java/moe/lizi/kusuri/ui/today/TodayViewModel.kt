@@ -15,9 +15,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import moe.lizi.kusuri.alarm.AlarmReminderScheduler
 import moe.lizi.kusuri.domain.DoseRecordRepository
 import moe.lizi.kusuri.domain.MedicationRepository
+import moe.lizi.kusuri.domain.RecordDoseUseCase
 import moe.lizi.kusuri.domain.model.DOSE_GRACE_PERIOD
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseRecord
@@ -39,7 +39,7 @@ class TodayViewModel(
     private val medicationRepository: MedicationRepository,
     private val doseRecordRepository: DoseRecordRepository,
     private val engine: ScheduleEngine,
-    private val scheduler: AlarmReminderScheduler,
+    private val recordDose: RecordDoseUseCase,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -70,18 +70,7 @@ class TodayViewModel(
 
     private fun record(item: TodayDoseItem, action: DoseAction) {
         viewModelScope.launch {
-            val alreadyRecorded =
-                doseRecordRepository.findByScheduled(item.medication.id, item.scheduledAt) != null
-            if (!alreadyRecorded) {
-                doseRecordRepository.record(
-                    medicationId = item.medication.id,
-                    scheduledAt = item.scheduledAt,
-                    amount = item.medication.defaultDose,
-                    action = action,
-                    source = DoseSource.IN_APP,
-                )
-            }
-            scheduler.cancelDose(item.medication.id)
+            recordDose.record(item.medication.id, item.scheduledAt, action, DoseSource.IN_APP)
         }
     }
 

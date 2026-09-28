@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -12,7 +14,7 @@ import androidx.room.RoomDatabase
         StockEventEntity::class,
         DoseRecordEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class KusuriDatabase : RoomDatabase() {
@@ -24,7 +26,20 @@ abstract class KusuriDatabase : RoomDatabase() {
     companion object {
         const val NAME = "kusuri.db"
 
+        /** v2:为服药记录加上 (药物, 计划时间) 唯一索引,保证"一次剂量只记一条"。 */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_dose_records_medicationId_scheduledAt " +
+                        "ON dose_records (medicationId, scheduledAt)",
+                )
+            }
+        }
+
         fun build(context: Context): KusuriDatabase =
-            Room.databaseBuilder(context, KusuriDatabase::class.java, NAME).build()
+            Room.databaseBuilder(context, KusuriDatabase::class.java, NAME)
+                .addMigrations(MIGRATION_1_2)
+                .build()
     }
 }

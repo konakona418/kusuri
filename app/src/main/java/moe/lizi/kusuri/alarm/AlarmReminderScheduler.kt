@@ -4,10 +4,10 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.flow.first
+import moe.lizi.kusuri.domain.DoseReminderControl
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -24,7 +24,7 @@ class AlarmReminderScheduler(
     private val engine: ScheduleEngine,
     private val notifier: DoseNotifier,
     private val clock: Clock,
-) {
+) : DoseReminderControl {
 
     private val alarmManager: AlarmManager = context.getSystemService(AlarmManager::class.java)
 
@@ -43,32 +43,33 @@ class AlarmReminderScheduler(
         setAlarm(next.toEpochMilli(), reminderPendingIntent(medication.id, next))
     }
 
-    fun scheduleSnooze(medicationId: Long) {
-        setAlarm(clock.millis() + ReminderActions.SNOOZE_MILLIS, snoozePendingIntent(medicationId))
+    /** "稍后 15 分钟":对同一次剂量再响一次,不改动记录与错过计时。 */
+    fun scheduleSnooze(medicationId: Long, scheduledAt: Instant) {
+        setAlarm(
+            triggerAtMillis = clock.millis() + ReminderActions.SNOOZE_MILLIS,
+            pendingIntent = snoozePendingIntent(medicationId, scheduledAt),
+        )
     }
 
     /** 该次剂量已处理:撤下通知与稍后闹钟(提醒闹钟已在触发时结束)。 */
-    fun cancelDose(medicationId: Long) {
+    override fun cancelDose(medicationId: Long) {
         notifier.cancel(medicationId)
-        existingPendingIntent(snoozeIntent(medicationId))?.let(alarmManager::cancel)
+        alarmManager.cancel(snoozePendingIntent(medicationId, clock.instant()))
     }
 
     /** 药物被归档/删除:清掉它的全部提醒痕迹。 */
     fun cancelAllFor(medicationId: Long) {
         cancelReminder(medicationId)
         notifier.cancel(medicationId)
-        existingPendingIntent(snoozeIntent(medicationId))?.let(alarmManager::cancel)
+        alarmManager.cancel(snoozePendingIntent(medicationId, clock.instant()))
     }
 
-    fun canScheduleExactAlarms(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
-
     private fun cancelReminder(medicationId: Long) {
-        existingPendingIntent(reminderIntent(medicationId))?.let(alarmManager::cancel)
+        alarmManager.cancel(reminderPendingIntent(medicationId, clock.instant()))
     }
 
     private fun setAlarm(triggerAtMillis: Long, pendingIntent: PendingIntent) {
-        if (canScheduleExactAlarms()) {
+        if (ExactAlarmPermissions.canScheduleExactAlarms(context)) {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
         } else {
             alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
@@ -79,37 +80,29 @@ class AlarmReminderScheduler(
         PendingIntent.getBroadcast(
             context,
             reminderRequestCode(medicationId),
-            reminderIntent(medicationId).apply {
-                putExtra(ReminderExtras.SCHEDULED_AT, scheduledAt.toEpochMilli())
-            },
+            reminderIntent(medicationId, scheduledAt),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun snoozePendingIntent(medicationId: Long): PendingIntent =
+    private fun snoozePendingIntent(medicationId: Long, scheduledAt: Instant): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             reminderRequestCode(medicationId),
-            snoozeIntent(medicationId),
+            snoozeIntent(medicationId, scheduledAt),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    private fun existingPendingIntent(intent: Intent): PendingIntent? =
-        PendingIntent.getBroadcast(
-            context,
-            reminderRequestCode(intent.getLongExtra(ReminderExtras.MEDICATION_ID, -1L)),
-            intent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
-        )
-
-    private fun reminderIntent(medicationId: Long): Intent =
+    private fun reminderIntent(medicationId: Long, scheduledAt: Instant): Intent =
         Intent(context, DoseAlarmReceiver::class.java).apply {
             action = ReminderActions.ACTION_DOSE_REMINDER
             putExtra(ReminderExtras.MEDICATION_ID, medicationId)
+            putExtra(ReminderExtras.SCHEDULED_AT, scheduledAt.toEpochMilli())
         }
 
-    private fun snoozeIntent(medicationId: Long): Intent =
+    private fun snoozeIntent(medicationId: Long, scheduledAt: Instant): Intent =
         Intent(context, DoseAlarmReceiver::class.java).apply {
             action = ReminderActions.ACTION_DOSE_SNOOZE
             putExtra(ReminderExtras.MEDICATION_ID, medicationId)
+            putExtra(ReminderExtras.SCHEDULED_AT, scheduledAt.toEpochMilli())
         }
 }

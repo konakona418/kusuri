@@ -30,6 +30,7 @@
     <!-- 通知 -->
     <string name="notification_title">该服药了:%1$s</string>
     <string name="notification_text">%1$s %2$s · 计划 %3$s</string>
+    <string name="notification_text_with_meal">%1$s · %2$s</string>
     <string name="channel_dose_reminders_name">用药提醒</string>
     <string name="channel_dose_reminders_description">按计划提醒服药</string>
 

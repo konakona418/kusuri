@@ -12,6 +12,7 @@ import java.time.Instant
 import java.time.ZoneId
 import moe.lizi.kusuri.MainActivity
 import moe.lizi.kusuri.R
+import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
@@ -53,14 +54,7 @@ class DoseNotifier(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_title, medication.name))
-            .setContentText(
-                context.getString(
-                    R.string.notification_text,
-                    formatAmount(medication.defaultDose),
-                    medication.unit,
-                    time,
-                ),
-            )
+            .setContentText(notificationText(medication, time))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
@@ -89,6 +83,23 @@ class DoseNotifier(private val context: Context) {
 
     fun cancel(medicationId: Long) {
         NotificationManagerCompat.from(context).cancel(notificationId(medicationId))
+    }
+
+    /** 文案模板:剂量 · 计划时间[ · 餐时标签](docs/plan.md §4.1)。 */
+    private fun notificationText(medication: Medication, time: String): String {
+        val base = context.getString(
+            R.string.notification_text,
+            formatAmount(medication.defaultDose),
+            medication.unit,
+            time,
+        )
+        val mealLabelRes = when (medication.mealTag) {
+            MealTag.NONE -> null
+            MealTag.BEFORE -> R.string.meal_before
+            MealTag.AFTER -> R.string.meal_after
+            MealTag.WITH -> R.string.meal_with
+        } ?: return base
+        return context.getString(R.string.notification_text_with_meal, base, context.getString(mealLabelRes))
     }
 
     private fun doseAction(action: String, medicationId: Long, scheduledMillis: Long): PendingIntent {

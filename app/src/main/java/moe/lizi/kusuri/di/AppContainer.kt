@@ -13,6 +13,7 @@ import moe.lizi.kusuri.data.RoomMedicationRepository
 import moe.lizi.kusuri.data.db.KusuriDatabase
 import moe.lizi.kusuri.domain.DoseRecordRepository
 import moe.lizi.kusuri.domain.MedicationRepository
+import moe.lizi.kusuri.domain.RecordDoseUseCase
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 
 /** 手动依赖容器:单模块小应用不引入 Hilt(docs/plan.md §8)。 */
@@ -38,6 +39,10 @@ class AppContainer(context: Context) {
 
     val alarmScheduler: AlarmReminderScheduler by lazy {
         AlarmReminderScheduler(appContext, medicationRepository, scheduleEngine, doseNotifier, clock)
+    }
+
+    val recordDose: RecordDoseUseCase by lazy {
+        RecordDoseUseCase(medicationRepository, doseRecordRepository, alarmScheduler)
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

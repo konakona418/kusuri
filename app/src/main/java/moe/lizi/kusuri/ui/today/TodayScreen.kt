@@ -1,10 +1,8 @@
 package moe.lizi.kusuri.ui.today
 
 import android.Manifest
-import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -45,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.time.ZoneId
 import moe.lizi.kusuri.R
+import moe.lizi.kusuri.alarm.ExactAlarmPermissions
 import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
@@ -60,13 +59,15 @@ fun TodayScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var notificationsEnabled by remember { mutableStateOf(areNotificationsEnabled(context)) }
-    var exactAlarmsAllowed by remember { mutableStateOf(canScheduleExactAlarms(context)) }
+    var exactAlarmsAllowed by remember {
+        mutableStateOf(ExactAlarmPermissions.canScheduleExactAlarms(context))
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 notificationsEnabled = areNotificationsEnabled(context)
-                exactAlarmsAllowed = canScheduleExactAlarms(context)
+                exactAlarmsAllowed = ExactAlarmPermissions.canScheduleExactAlarms(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -95,7 +96,10 @@ fun TodayScreen(
             PermissionBanner(
                 text = stringResource(R.string.today_exact_alarm_denied),
                 actionLabel = stringResource(R.string.action_open_settings),
-                onAction = { openExactAlarmSettings(context) },
+                onAction = {
+                    runCatching { context.startActivity(ExactAlarmPermissions.settingsIntent(context)) }
+                        .onFailure { context.startActivity(ExactAlarmPermissions.appDetailsIntent(context)) }
+                },
             )
         }
 
@@ -226,26 +230,6 @@ private fun PermissionBanner(text: String, actionLabel: String, onAction: () -> 
 
 private fun areNotificationsEnabled(context: Context): Boolean =
     NotificationManagerCompat.from(context).areNotificationsEnabled()
-
-private fun canScheduleExactAlarms(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
-    return context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
-}
-
-private fun openExactAlarmSettings(context: Context) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-    val intent = Intent(
-        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-        Uri.parse("package:${context.packageName}"),
-    )
-    runCatching { context.startActivity(intent) }.onFailure {
-        val fallback = Intent(
-            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-            Uri.parse("package:${context.packageName}"),
-        )
-        context.startActivity(fallback)
-    }
-}
 
 private fun openAppNotificationSettings(context: Context) {
     val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)

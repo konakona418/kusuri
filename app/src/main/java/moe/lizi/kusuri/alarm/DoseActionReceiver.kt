@@ -4,9 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import java.time.Instant
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import moe.lizi.kusuri.di.AppContainer
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseSource
 
@@ -19,43 +17,23 @@ class DoseActionReceiver : BroadcastReceiver() {
         if (medicationId <= 0L || scheduledMillis <= 0L) return
 
         val container = context.appContainer()
+        val scheduledAt = Instant.ofEpochMilli(scheduledMillis)
         val pendingResult = goAsync()
         receiverScope.launch {
             try {
-                val scheduledAt = Instant.ofEpochMilli(scheduledMillis)
                 when (intent.action) {
                     ReminderActions.ACTION_DOSE_TAKEN ->
-                        recordDose(container, medicationId, scheduledAt, DoseAction.TAKEN)
+                        container.recordDose.record(medicationId, scheduledAt, DoseAction.TAKEN, DoseSource.NOTIFICATION)
 
                     ReminderActions.ACTION_DOSE_SKIP ->
-                        recordDose(container, medicationId, scheduledAt, DoseAction.SKIPPED)
+                        container.recordDose.record(medicationId, scheduledAt, DoseAction.SKIPPED, DoseSource.NOTIFICATION)
 
                     ReminderActions.ACTION_DOSE_SNOOZE_REQUEST ->
-                        container.alarmScheduler.scheduleSnooze(medicationId)
+                        container.alarmScheduler.scheduleSnooze(medicationId, scheduledAt)
                 }
             } finally {
                 pendingResult.finish()
             }
         }
-    }
-
-    private suspend fun recordDose(
-        container: AppContainer,
-        medicationId: Long,
-        scheduledAt: Instant,
-        action: DoseAction,
-    ) {
-        val medication = container.medicationRepository.observeMedication(medicationId).first() ?: return
-        val alreadyRecorded = container.doseRecordRepository.findByScheduled(medicationId, scheduledAt) != null
-        if (!alreadyRecorded) {
-            container.doseRecordRepository.record(
-                medicationId = medicationId,
-                scheduledAt = scheduledAt,
-                amount = medication.defaultDose,
-                action = action,
-                source = DoseSource.NOTIFICATION,
-            )
-        }
-        container.alarmScheduler.cancelDose(medicationId)
     }
 }

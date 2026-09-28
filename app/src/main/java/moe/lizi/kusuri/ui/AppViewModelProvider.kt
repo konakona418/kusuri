@@ -39,7 +39,7 @@ object AppViewModelProvider {
                 medicationRepository = container.medicationRepository,
                 doseRecordRepository = container.doseRecordRepository,
                 engine = container.scheduleEngine,
-                scheduler = container.alarmScheduler,
+                recordDose = container.recordDose,
                 clock = container.clock,
             )
         }
