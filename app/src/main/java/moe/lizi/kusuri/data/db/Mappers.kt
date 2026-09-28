@@ -87,7 +87,7 @@ private fun MedicationEntity.toSchedule(times: List<MedicationTimeEntity>): Sche
             maxPerDay = prnMaxPerDay,
         )
 
-        else -> error("未知的排程模式: $scheduleMode")
+        else -> error("unknown schedule mode: $scheduleMode")
     }
 
 internal fun DoseRecordEntity.toDomain(): DoseRecord = DoseRecord(

@@ -11,7 +11,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        (application as KusuriApplication).container.startReminderSync()
+        val container = (application as KusuriApplication).container
+        container.startReminderSync()
+        container.scheduleMaintenance()
         setContent {
             KusuriTheme {
                 KusuriApp()

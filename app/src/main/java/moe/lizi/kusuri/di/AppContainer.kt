@@ -7,10 +7,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 import moe.lizi.kusuri.alarm.AlarmReminderScheduler
 import moe.lizi.kusuri.alarm.DoseNotifier
+import moe.lizi.kusuri.alarm.ReminderMaintenanceWorker
 import moe.lizi.kusuri.data.RoomDoseRecordRepository
 import moe.lizi.kusuri.data.RoomMedicationRepository
+import moe.lizi.kusuri.data.SettingsRepository
+import moe.lizi.kusuri.data.backup.BackupService
 import moe.lizi.kusuri.data.db.KusuriDatabase
 import moe.lizi.kusuri.domain.CheckLowStockUseCase
 import moe.lizi.kusuri.domain.CompleteFinishedCoursesUseCase
@@ -37,6 +44,10 @@ class AppContainer(context: Context) {
     val doseRecordRepository: DoseRecordRepository by lazy {
         RoomDoseRecordRepository(database, clock)
     }
+
+    val settingsRepository: SettingsRepository by lazy { SettingsRepository(appContext) }
+
+    val backupService: BackupService by lazy { BackupService(appContext, database, clock) }
 
     val doseNotifier: DoseNotifier by lazy { DoseNotifier(appContext) }
 
@@ -73,6 +84,17 @@ class AppContainer(context: Context) {
         }
     }
 
+    /** 每 6 小时一次的巡检:WorkManager 作为"漏排/被杀"的安全网(docs/plan.md §5)。 */
+    fun scheduleMaintenance() {
+        val request = PeriodicWorkRequestBuilder<ReminderMaintenanceWorker>(6, TimeUnit.HOURS)
+            .build()
+        WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
+            MAINTENANCE_WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            request,
+        )
+    }
+
     /** 药物数据一变就整体重排闹钟;幂等,可在 App 启动时重复调用。 */
     fun startReminderSync() {
         if (reminderSyncStarted) return
@@ -83,5 +105,9 @@ class AppContainer(context: Context) {
                 alarmScheduler.rescheduleAll(medications)
             }
         }
+    }
+
+    private companion object {
+        const val MAINTENANCE_WORK_NAME = "reminder-maintenance"
     }
 }

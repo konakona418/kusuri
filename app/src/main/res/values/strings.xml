@@ -63,7 +63,45 @@
     <string name="placeholder_coming_soon">功能开发中</string>
     <string name="settings_about_title">关于</string>
     <string name="settings_about_body">Kusuri 完全离线、无遥测,所有数据只保存在你的设备上。</string>
-    <string name="settings_coming_soon">更多设置项将在后续开发中加入。</string>
+
+    <!-- 可靠性检查与设置 -->
+    <string name="settings_section_reliability">提醒健康检查</string>
+    <string name="reliability_notifications">通知权限</string>
+    <string name="reliability_exact_alarm">精确闹钟</string>
+    <string name="reliability_battery">电池优化白名单</string>
+    <string name="reliability_ok">已就绪</string>
+    <string name="reliability_pending">待处理</string>
+    <string name="settings_section_general">常规</string>
+    <string name="settings_grace_period">宽限窗口</string>
+    <string name="settings_grace_period_value">%1$d 小时</string>
+    <string name="grace_dialog_title">宽限窗口</string>
+    <string name="grace_dialog_hint">计划时间后多久仍未处理即判为错过(1–12 小时)</string>
+
+    <!-- 备份与导出 -->
+    <string name="settings_section_backup">备份与导出</string>
+    <string name="settings_backup_description">数据只保存在本机;导出与导入都通过系统文件选择器,全程无网络。</string>
+    <string name="backup_export_csv">导出服药记录(CSV)</string>
+    <string name="backup_export_json">导出完整备份(JSON)</string>
+    <string name="backup_import_json">导入备份(JSON)</string>
+    <string name="backup_import_warning">导入会覆盖本机现有全部数据。</string>
+    <string name="backup_csv_exported">已导出服药记录</string>
+    <string name="backup_json_exported">已导出完整备份</string>
+    <string name="backup_imported">已导入 %1$d 味药</string>
+    <string name="backup_failed_generic">操作失败</string>
+    <string name="csv_header_medication">药物</string>
+    <string name="csv_header_dose">剂量</string>
+    <string name="csv_header_scheduled_at">计划时间</string>
+    <string name="csv_header_actual_at">实际时间</string>
+    <string name="csv_header_status">状态</string>
+    <string name="csv_header_source">来源</string>
+    <string name="csv_source_in_app">应用内</string>
+    <string name="csv_source_notification">通知</string>
+    <string name="csv_source_backfill">补记</string>
+
+    <!-- 首次向导 -->
+    <string name="onboarding_title">让提醒真正可靠</string>
+    <string name="onboarding_body">三项检查,处理完就能放心:</string>
+    <string name="onboarding_done">完成</string>
 
     <!-- 药物列表 -->
     <string name="medications_empty_title">还没有药物</string>

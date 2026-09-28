@@ -67,4 +67,28 @@ interface MedicationDao {
 
     @Insert
     suspend fun insertStockEvent(event: StockEventEntity): Long
+
+    @Query("SELECT * FROM stock_events")
+    suspend fun getAllStockEvents(): List<StockEventEntity>
+
+    @Insert
+    suspend fun insertStockEvents(events: List<StockEventEntity>)
+
+    @Query("DELETE FROM stock_events")
+    suspend fun deleteAllStockEvents()
+
+    @Query("SELECT * FROM medications")
+    suspend fun getAll(): List<MedicationEntity>
+
+    @Insert
+    suspend fun insertMedications(medications: List<MedicationEntity>)
+
+    @Query("DELETE FROM medications")
+    suspend fun deleteAll()
+
+    @Query("SELECT * FROM medication_times")
+    suspend fun getAllTimes(): List<MedicationTimeEntity>
+
+    @Query("DELETE FROM medication_times")
+    suspend fun deleteAllTimes()
 }

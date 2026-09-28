@@ -29,12 +29,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.lizi.kusuri.R
+import moe.lizi.kusuri.ui.components.OnboardingDialog
 import moe.lizi.kusuri.ui.history.HistoryScreen
 import moe.lizi.kusuri.ui.medications.MedicationDetailScreen
 import moe.lizi.kusuri.ui.medications.MedicationEditScreen
 import moe.lizi.kusuri.ui.medications.MedicationListScreen
 import moe.lizi.kusuri.ui.settings.SettingsScreen
+import moe.lizi.kusuri.ui.settings.SettingsViewModel
 import moe.lizi.kusuri.ui.today.TodayScreen
 
 object Routes {
@@ -65,6 +69,8 @@ private val TOP_LEVEL_DESTINATIONS = listOf(
 
 @Composable
 fun KusuriApp(navController: NavHostController = rememberNavController()) {
+    val settingsViewModel: SettingsViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    val onboardingDone by settingsViewModel.onboardingDone.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isTopLevel = TOP_LEVEL_DESTINATIONS.any { it.route == currentRoute }
@@ -137,6 +143,10 @@ fun KusuriApp(navController: NavHostController = rememberNavController()) {
                 MedicationEditScreen(onSaved = { navController.popBackStack() })
             }
         }
+    }
+
+    if (!onboardingDone) {
+        OnboardingDialog(onDone = { settingsViewModel.completeOnboarding() })
     }
 }
 

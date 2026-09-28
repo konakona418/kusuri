@@ -52,6 +52,7 @@ import java.time.Instant
 import java.time.ZoneId
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.ExactAlarmPermissions
+import moe.lizi.kusuri.alarm.ReliabilityChecks
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.model.Medication
@@ -72,7 +73,7 @@ fun TodayScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var notificationsEnabled by remember { mutableStateOf(areNotificationsEnabled(context)) }
+    var notificationsEnabled by remember { mutableStateOf(ReliabilityChecks.notificationsEnabled(context)) }
     var exactAlarmsAllowed by remember {
         mutableStateOf(ExactAlarmPermissions.canScheduleExactAlarms(context))
     }
@@ -81,7 +82,7 @@ fun TodayScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                notificationsEnabled = areNotificationsEnabled(context)
+                notificationsEnabled = ReliabilityChecks.notificationsEnabled(context)
                 exactAlarmsAllowed = ExactAlarmPermissions.canScheduleExactAlarms(context)
             }
         }
@@ -429,9 +430,6 @@ private fun PermissionBanner(text: String, actionLabel: String, onAction: () -> 
         }
     }
 }
-
-private fun areNotificationsEnabled(context: Context): Boolean =
-    NotificationManagerCompat.from(context).areNotificationsEnabled()
 
 private const val QUICK_AMOUNT_ONE = "1"
 private const val QUICK_AMOUNT_TWO = "2"

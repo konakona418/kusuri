@@ -3,6 +3,7 @@ package moe.lizi.kusuri.ui.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.domain.DoseRecordRepository
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.RecordDoseUseCase
@@ -29,6 +31,7 @@ import moe.lizi.kusuri.domain.util.clockTicks
 class HistoryViewModel(
     private val medicationRepository: MedicationRepository,
     private val doseRecordRepository: DoseRecordRepository,
+    private val settings: SettingsRepository,
     private val engine: ScheduleEngine,
     private val recordDose: RecordDoseUseCase,
     private val clock: Clock,
@@ -58,7 +61,8 @@ class HistoryViewModel(
                     engine.dayStart(today.plusDays(1)),
                 ),
                 nowFlow,
-            ) { medications, records, now ->
+                settings.gracePeriodHours,
+            ) { medications, records, now, graceHours ->
                 buildHistoryTimeline(
                     medications = medications,
                     records = records,
@@ -66,6 +70,7 @@ class HistoryViewModel(
                     now = now,
                     engine = engine,
                     windowDays = WINDOW_DAYS,
+                    gracePeriod = Duration.ofHours(graceHours.toLong()),
                 )
             }
         }

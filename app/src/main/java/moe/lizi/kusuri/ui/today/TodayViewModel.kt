@@ -3,6 +3,7 @@ package moe.lizi.kusuri.ui.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,7 @@ import kotlinx.coroutines.launch
 import moe.lizi.kusuri.domain.DoseRecordRepository
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.RecordDoseUseCase
-import moe.lizi.kusuri.domain.model.DOSE_GRACE_PERIOD
+import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseRecord
 import moe.lizi.kusuri.domain.model.DoseSource
@@ -71,6 +72,7 @@ data class PrnRecordState(
 class TodayViewModel(
     private val medicationRepository: MedicationRepository,
     private val doseRecordRepository: DoseRecordRepository,
+    private val settings: SettingsRepository,
     private val engine: ScheduleEngine,
     private val recordDose: RecordDoseUseCase,
     private val clock: Clock,
@@ -82,16 +84,18 @@ class TodayViewModel(
     val uiState: StateFlow<TodayUiState> = combine(
         medicationRepository.observeMedications(),
         nowFlow,
-    ) { medications, now -> medications to now }
-        .flatMapLatest { (medications, now) ->
+        settings.gracePeriodHours,
+    ) { medications, now, graceHours -> Triple(medications, now, graceHours) }
+        .flatMapLatest { (medications, now, graceHours) ->
             val today = engine.today()
+            val grace = Duration.ofHours(graceHours.toLong())
             doseRecordRepository
                 .observeRecordsBetween(engine.dayStart(today), engine.dayStart(today.plusDays(1)))
                 .map { records ->
                     val active = medications.filter { it.status == MedicationStatus.ACTIVE }
                     TodayUiState(
                         now = now,
-                        doses = buildDoses(active, records, now),
+                        doses = buildDoses(active, records, now, grace),
                         prnInfos = active
                             .filter { it.schedule is Schedule.Prn }
                             .map { medication ->
@@ -169,6 +173,7 @@ class TodayViewModel(
         medications: List<Medication>,
         records: List<DoseRecord>,
         now: Instant,
+        gracePeriod: Duration,
     ): List<TodayDoseItem> {
         val today = engine.today()
         val recordsByDose = records
@@ -185,7 +190,7 @@ class TodayViewModel(
                             record = recordsByDose[medication.id to scheduledAt],
                             scheduledAt = scheduledAt,
                             now = now,
-                            gracePeriod = DOSE_GRACE_PERIOD,
+                            gracePeriod = gracePeriod,
                         ),
                     )
                 }
