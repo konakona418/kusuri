@@ -54,6 +54,20 @@ class RecordDoseUseCaseTest {
     }
 
     @Test
+    fun `backfill records taken with explicit time and backfill source`() = runTest {
+        val records = FakeDoseRecordRepository()
+        val actualAt = Instant.parse("2026-09-28T06:00:00Z")
+        val useCase = RecordDoseUseCase(FakeMedicationRepository(medication), records, FakeReminderControl())
+
+        assertTrue(useCase.backfill(1L, scheduledAt, actualAt))
+
+        val record = records.records.single()
+        assertEquals(actualAt, record.actualAt)
+        assertEquals(DoseAction.TAKEN, record.action)
+        assertEquals(DoseSource.BACKFILL, record.source)
+    }
+
+    @Test
     fun `unknown medication is ignored`() = runTest {
         val records = FakeDoseRecordRepository()
         val useCase = RecordDoseUseCase(FakeMedicationRepository(null), records, FakeReminderControl())
@@ -88,16 +102,26 @@ private class FakeDoseRecordRepository : DoseRecordRepository {
         amount: Double,
         action: DoseAction,
         source: DoseSource,
+        actualAt: Instant?,
     ) {
         records += DoseRecord(
             id = records.size + 1L,
             medicationId = medicationId,
             scheduledAt = scheduledAt,
-            actualAt = Instant.EPOCH,
+            actualAt = actualAt ?: Instant.EPOCH,
             amount = amount,
             action = action,
             source = source,
         )
+    }
+
+    override suspend fun update(recordId: Long, actualAt: Instant, action: DoseAction) {
+        val index = records.indexOfFirst { it.id == recordId }
+        if (index >= 0) records[index] = records[index].copy(actualAt = actualAt, action = action)
+    }
+
+    override suspend fun delete(recordId: Long) {
+        records.removeAll { it.id == recordId }
     }
 }
 

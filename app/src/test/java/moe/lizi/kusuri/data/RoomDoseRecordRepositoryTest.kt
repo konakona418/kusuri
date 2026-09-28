@@ -112,4 +112,46 @@ class RoomDoseRecordRepositoryTest {
         assertEquals(DoseAction.SKIPPED, repository.findByScheduled(1L, scheduledAt)!!.action)
         assertNull(repository.findByScheduled(2L, scheduledAt))
     }
+
+    @Test
+    fun `explicit actual time is used for backfill`() = runTest {
+        insertMedication()
+        val actualAt = Instant.parse("2026-09-28T05:00:00Z")
+
+        repository.record(1L, scheduledAt, 0.5, DoseAction.TAKEN, DoseSource.BACKFILL, actualAt = actualAt)
+
+        assertEquals(actualAt, repository.findByScheduled(1L, scheduledAt)!!.actualAt)
+    }
+
+    @Test
+    fun `a second record for the same planned dose is ignored`() = runTest {
+        insertMedication()
+
+        repository.record(1L, scheduledAt, 1.0, DoseAction.TAKEN, DoseSource.IN_APP)
+        repository.record(1L, scheduledAt, 1.0, DoseAction.SKIPPED, DoseSource.NOTIFICATION)
+
+        val records = repository
+            .observeScheduledBetween(scheduledAt.minusSeconds(1), scheduledAt.plusSeconds(1))
+            .first()
+        assertEquals(1, records.size)
+        assertEquals(DoseAction.TAKEN, records.single().action)
+    }
+
+    @Test
+    fun `records can be updated and deleted`() = runTest {
+        insertMedication()
+        repository.record(1L, scheduledAt, 1.0, DoseAction.SKIPPED, DoseSource.IN_APP)
+        val record = repository.findByScheduled(1L, scheduledAt)!!
+        val actualAt = Instant.parse("2026-09-28T05:30:00Z")
+
+        repository.update(record.id, actualAt = actualAt, action = DoseAction.TAKEN)
+
+        val updated = repository.findByScheduled(1L, scheduledAt)!!
+        assertEquals(actualAt, updated.actualAt)
+        assertEquals(DoseAction.TAKEN, updated.action)
+
+        repository.delete(record.id)
+
+        assertNull(repository.findByScheduled(1L, scheduledAt))
+    }
 }

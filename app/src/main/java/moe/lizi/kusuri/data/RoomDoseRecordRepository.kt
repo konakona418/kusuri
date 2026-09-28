@@ -32,16 +32,25 @@ class RoomDoseRecordRepository(
         amount: Double,
         action: DoseAction,
         source: DoseSource,
+        actualAt: Instant?,
     ) {
         dao.insert(
             DoseRecordEntity(
                 medicationId = medicationId,
                 scheduledAt = scheduledAt?.toEpochMilli(),
-                actualAt = clock.millis(),
+                actualAt = (actualAt ?: clock.instant()).toEpochMilli(),
                 amount = amount,
                 action = action.name,
                 source = source.name,
             ),
         )
+    }
+
+    override suspend fun update(recordId: Long, actualAt: Instant, action: DoseAction) {
+        dao.update(id = recordId, actualAt = actualAt.toEpochMilli(), action = action.name)
+    }
+
+    override suspend fun delete(recordId: Long) {
+        dao.delete(recordId)
     }
 }

@@ -23,4 +23,10 @@ interface DoseRecordDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(record: DoseRecordEntity): Long
+
+    @Query("UPDATE dose_records SET actualAt = :actualAt, action = :action WHERE id = :id")
+    suspend fun update(id: Long, actualAt: Long, action: String)
+
+    @Query("DELETE FROM dose_records WHERE id = :id")
+    suspend fun delete(id: Long)
 }

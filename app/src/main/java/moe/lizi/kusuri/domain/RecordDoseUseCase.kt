@@ -37,4 +37,22 @@ class RecordDoseUseCase(
         reminderControl.cancelDose(medicationId)
         return !alreadyRecorded
     }
+
+    /** 补记:为过去的计划剂量补一条"已服用",实际时间由用户指定。 */
+    suspend fun backfill(medicationId: Long, scheduledAt: Instant, actualAt: Instant): Boolean {
+        val medication = medicationRepository.observeMedication(medicationId).first() ?: return false
+        val alreadyRecorded = doseRecordRepository.findByScheduled(medicationId, scheduledAt) != null
+        if (!alreadyRecorded) {
+            doseRecordRepository.record(
+                medicationId = medicationId,
+                scheduledAt = scheduledAt,
+                amount = medication.defaultDose,
+                action = DoseAction.TAKEN,
+                source = DoseSource.BACKFILL,
+                actualAt = actualAt,
+            )
+        }
+        reminderControl.cancelDose(medicationId)
+        return !alreadyRecorded
+    }
 }

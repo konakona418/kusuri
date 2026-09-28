@@ -13,12 +13,17 @@ interface DoseRecordRepository {
 
     suspend fun findByScheduled(medicationId: Long, scheduledAt: Instant): DoseRecord?
 
-    /** 以注入的时钟作为实际服用时间落一笔记录。 */
+    /** 落一笔记录;[actualAt] 为空时用注入的时钟。 */
     suspend fun record(
         medicationId: Long,
         scheduledAt: Instant?,
         amount: Double,
         action: DoseAction,
         source: DoseSource,
+        actualAt: Instant? = null,
     )
+
+    suspend fun update(recordId: Long, actualAt: Instant, action: DoseAction)
+
+    suspend fun delete(recordId: Long)
 }
