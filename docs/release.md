@@ -4,36 +4,28 @@
 - `versionCode` / `versionName` 位于 `app/build.gradle.kts`;每次对外发布必须递增 `versionCode`。
 - 当前:`versionCode = 1`、`versionName = "1.0"`。
 
-## 签名(首次发布前完成一次)
-1. 生成 keystore(**不要提交仓库**):
+## 签名(本机已配置)
+- keystore:`~/.android-keys/kusuri-release.jks`(**仓库外**,已 `chmod 600`)
+- 凭据:`~/.gradle/gradle.properties` 中的 `kusuriStoreFile` / `kusuriStorePassword` / `kusuriKeyAlias` / `kusuriKeyPassword`
+- `app/build.gradle.kts` 里**有这些属性才启用** release 签名;没有时仍可构建未签名包(CI 友好)
+- 这两个文件请自行备份:**丢失后无法用同一签名升级,只能卸载重装**
+
+首次在别的机器上重建:
+
+1. 生成 keystore(别名 `kusuri`,RSA 4096,10000 天):
    ```
-   keytool -genkeypair -v -keystore kusuri-release.jks -keyalg RSA -keysize 4096 \
-     -validity 10000 -alias kusuri
+   keytool -genkeypair -v -keystore ~/.android-keys/kusuri-release.jks \
+     -alias kusuri -keyalg RSA -keysize 4096 -validity 10000
    ```
-2. 在 `~/.gradle/gradle.properties`(本机,不入库)写入:
-   ```
-   kusuriStoreFile=/absolute/path/kusuri-release.jks
-   kusuriStorePassword=…
-   kusuriKeyAlias=kusuri
-   kusuriKeyPassword=…
-   ```
-3. 在 `app/build.gradle.kts` 中绑定(示例):
-   ```kotlin
-   android {
-       signingConfigs {
-           create("release") {
-               storeFile = file(providers.gradleProperty("kusuriStoreFile").get())
-               storePassword = providers.gradleProperty("kusuriStorePassword").get()
-               keyAlias = providers.gradleProperty("kusuriKeyAlias").get()
-               keyPassword = providers.gradleProperty("kusuriKeyPassword").get()
-           }
-       }
-       buildTypes {
-           release { signingConfig = signingConfigs.getByName("release") }
-       }
-   }
-   ```
-4. `./gradlew :app:assembleRelease`,再用 `apksigner verify` 校验产物。
+2. 把四个 `kusuri*` 属性写进 `~/.gradle/gradle.properties`(不入库)。
+3. `./gradlew :app:assembleRelease` → 产物为 `app-release.apk`(已签名),用
+   `apksigner verify --print-certs` 校验。
+
+> **debug 与 release 签名不同,不能互相覆盖安装。** 从 debug 切到 release 必须先卸载(会清数据,先用"导出完整备份(JSON)"保命);之后同一签名的 release 之间可以直接升级。
+
+## 日常装机
+- 正式包(保留数据):`./gradlew :app:installRelease`
+- 调试包:`./gradlew :app:installDebug`(若手机上装的是正式包,会因签名不同失败,需先卸载)
 
 ## R8
 - release 已开启 `optimization { enable = true }`(AGP 9 DSL)。

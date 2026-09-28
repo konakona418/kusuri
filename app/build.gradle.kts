@@ -20,10 +20,27 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val releaseStoreFilePath: String? = providers.gradleProperty("kusuriStoreFile").orNull
+
+    signingConfigs {
+        if (releaseStoreFilePath != null) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath)
+                storePassword = providers.gradleProperty("kusuriStorePassword").get()
+                keyAlias = providers.gradleProperty("kusuriKeyAlias").get()
+                keyPassword = providers.gradleProperty("kusuriKeyPassword").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = true
+            }
+            // 本地有 keystore 才签名;没有时仍可构建未签名包(如 CI)。
+            if (releaseStoreFilePath != null) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }
