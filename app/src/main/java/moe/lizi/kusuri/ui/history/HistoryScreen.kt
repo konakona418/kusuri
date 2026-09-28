@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,19 +27,24 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.history.AdherenceSummary
+import moe.lizi.kusuri.domain.history.HistoryDay
 import moe.lizi.kusuri.domain.history.HistoryDose
 import moe.lizi.kusuri.domain.model.DoseAction
+import moe.lizi.kusuri.domain.model.LogEntry
+import moe.lizi.kusuri.domain.model.LogEntryType
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.DoseRecordDialog
 import moe.lizi.kusuri.ui.components.DoseStatusText
 import moe.lizi.kusuri.ui.components.dayLabel
+import moe.lizi.kusuri.ui.components.severityDots
 
 @Composable
 fun HistoryScreen(
@@ -81,8 +87,19 @@ fun HistoryScreen(
                             modifier = Modifier.padding(top = 8.dp),
                         )
                     }
-                    items(day.doses, key = { "${it.medication.id}:${it.scheduledAt.epochSecond}" }) { dose ->
-                        HistoryDoseRow(dose = dose, onClick = { editing = dose })
+                    items(day.rows(), key = { it.key }) { row ->
+                        when (row) {
+                            is TimelineRow.Dose -> HistoryDoseRow(
+                                dose = row.dose,
+                                onClick = { editing = row.dose },
+                            )
+
+                            is TimelineRow.Log -> HistoryLogRow(
+                                entry = row.entry,
+                                medicationName = row.entry.medicationId?.let { timeline.medicationNames[it] },
+                                zone = zone,
+                            )
+                        }
                     }
                 }
             }
@@ -197,3 +214,83 @@ private fun HistoryDoseRow(dose: HistoryDose, onClick: () -> Unit) {
         }
     }
 }
+
+@Composable
+private fun HistoryLogRow(entry: LogEntry, medicationName: String?, zone: ZoneId) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = formatTime(entry.at.atZone(zone).toLocalTime()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(56.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                when (entry.type) {
+                    LogEntryType.SYMPTOM -> Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(entry.symptom.orEmpty(), style = MaterialTheme.typography.bodyMedium)
+                        entry.severity?.let { severity ->
+                            Text(
+                                text = severityDots(severity),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+
+                    LogEntryType.NOTE -> Text(
+                        text = stringResource(R.string.log_type_note),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+                entry.note?.let { note ->
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                medicationName?.let { name ->
+                    Text(
+                        text = stringResource(R.string.log_linked_to, name),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private sealed interface TimelineRow {
+    val at: Instant
+    val key: String
+
+    data class Dose(val dose: HistoryDose) : TimelineRow {
+        override val at: Instant get() = dose.scheduledAt
+        override val key: String get() = "dose:${dose.medication.id}:${dose.scheduledAt.epochSecond}"
+    }
+
+    data class Log(val entry: LogEntry) : TimelineRow {
+        override val at: Instant get() = entry.at
+        override val key: String get() = "log:${entry.id}"
+    }
+}
+
+private fun HistoryDay.rows(): List<TimelineRow> =
+    (doses.map { TimelineRow.Dose(it) } + logs.map { TimelineRow.Log(it) })
+        .sortedByDescending { it.at }

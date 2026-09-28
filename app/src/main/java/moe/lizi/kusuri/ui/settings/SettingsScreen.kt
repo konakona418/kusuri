@@ -65,7 +65,8 @@ fun SettingsScreen(
     ) { /* 回到前台后 rememberReliabilityState 会重新读取 */ }
 
     val csvLabels = CsvLabels(
-        header = listOf(
+        doseSectionTitle = stringResource(R.string.csv_section_doses),
+        doseHeader = listOf(
             stringResource(R.string.csv_header_medication),
             stringResource(R.string.csv_header_dose),
             stringResource(R.string.csv_header_scheduled_at),
@@ -78,6 +79,18 @@ fun SettingsScreen(
         sourceInApp = stringResource(R.string.csv_source_in_app),
         sourceNotification = stringResource(R.string.csv_source_notification),
         sourceBackfill = stringResource(R.string.csv_source_backfill),
+        logSectionTitle = stringResource(R.string.csv_section_logs),
+        logHeader = listOf(
+            stringResource(R.string.csv_log_header_time),
+            stringResource(R.string.csv_log_header_type),
+            stringResource(R.string.csv_log_header_symptom),
+            stringResource(R.string.csv_log_header_severity),
+            stringResource(R.string.csv_log_header_medication),
+            stringResource(R.string.csv_log_header_note),
+        ),
+        logTypeSymptom = stringResource(R.string.log_type_symptom),
+        logTypeNote = stringResource(R.string.log_type_note),
+        logLinkedNone = stringResource(R.string.log_link_none),
     )
 
     val exportCsvLauncher = rememberLauncherForActivityResult(

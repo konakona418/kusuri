@@ -10,6 +10,8 @@ import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseRecord
 import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.DoseStatus
+import moe.lizi.kusuri.domain.model.LogEntry
+import moe.lizi.kusuri.domain.model.LogEntryType
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -127,6 +129,35 @@ class HistoryTimelineTest {
         val dose = timeline.days.single { it.date == LocalDate.of(2026, 9, 27) }.doses.single()
         assertTrue(dose.status is DoseStatus.Taken)
         assertEquals(1, timeline.adherence30.taken)
+    }
+
+    @Test
+    fun `log entries are grouped onto their day with medication names available`() {
+        val logAt = at(LocalDate.of(2026, 9, 27), LocalTime.of(14, 0))
+
+        val timeline = buildHistoryTimeline(
+            medications = listOf(medication()),
+            records = emptyList(),
+            today = today,
+            now = now,
+            engine = engine,
+            logEntries = listOf(
+                LogEntry(
+                    id = 1L,
+                    type = LogEntryType.SYMPTOM,
+                    at = logAt,
+                    symptom = "恶心",
+                    severity = 4,
+                    medicationId = 1L,
+                    note = "饭后",
+                ),
+            ),
+        )
+
+        val day = timeline.days.single { it.date == LocalDate.of(2026, 9, 27) }
+        assertEquals(1, day.logs.size)
+        assertEquals("恶心", day.logs.single().symptom)
+        assertEquals(mapOf(1L to "二甲双胍"), timeline.medicationNames)
     }
 
     @Test

@@ -6,6 +6,7 @@ import java.time.LocalDate
 import moe.lizi.kusuri.domain.model.DOSE_GRACE_PERIOD
 import moe.lizi.kusuri.domain.model.DoseRecord
 import moe.lizi.kusuri.domain.model.DoseStatus
+import moe.lizi.kusuri.domain.model.LogEntry
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.model.doseStatus
@@ -18,13 +19,18 @@ data class HistoryDose(
     val status: DoseStatus,
 )
 
-data class HistoryDay(val date: LocalDate, val doses: List<HistoryDose>)
+data class HistoryDay(
+    val date: LocalDate,
+    val doses: List<HistoryDose>,
+    val logs: List<LogEntry>,
+)
 
 data class HistoryTimeline(
     val today: LocalDate,
     val days: List<HistoryDay>,
     val adherence7: AdherenceSummary,
     val adherence30: AdherenceSummary,
+    val medicationNames: Map<Long, String>,
 ) {
     companion object {
         val Empty = HistoryTimeline(
@@ -32,6 +38,7 @@ data class HistoryTimeline(
             days = emptyList(),
             adherence7 = AdherenceSummary(taken = 0, resolved = 0),
             adherence30 = AdherenceSummary(taken = 0, resolved = 0),
+            medicationNames = emptyMap(),
         )
     }
 }
@@ -53,6 +60,7 @@ fun buildHistoryTimeline(
     engine: ScheduleEngine,
     windowDays: Int = 30,
     gracePeriod: Duration = DOSE_GRACE_PERIOD,
+    logEntries: List<LogEntry> = emptyList(),
 ): HistoryTimeline {
     val windowStart = today.minusDays(windowDays - 1L)
     val medicationsById = medications.associateBy { it.id }
@@ -110,9 +118,22 @@ fun buildHistoryTimeline(
         )
     }
 
-    val days = dosesByDate.entries
-        .sortedByDescending { it.key }
-        .map { (day, doses) -> HistoryDay(date = day, doses = doses.sortedBy { it.scheduledAt }) }
+    val logsByDate = logEntries
+        .filter {
+            val date = engine.dateOf(it.at)
+            !date.isBefore(windowStart) && !date.isAfter(today)
+        }
+        .groupBy { engine.dateOf(it.at) }
+
+    val days = (dosesByDate.keys + logsByDate.keys)
+        .sortedDescending()
+        .map { date ->
+            HistoryDay(
+                date = date,
+                doses = dosesByDate[date].orEmpty().sortedBy { it.scheduledAt },
+                logs = logsByDate[date].orEmpty().sortedByDescending { it.at },
+            )
+        }
 
     // 遵守率只看计划剂量(含对不上计划的记录);按需记录不属于"应服而未服"。
     val scheduledDose = { dose: HistoryDose ->
@@ -130,5 +151,6 @@ fun buildHistoryTimeline(
         days = days,
         adherence7 = adherenceRate(last7),
         adherence30 = adherenceRate(last30),
+        medicationNames = medicationsById.mapValues { (_, medication) -> medication.name },
     )
 }

@@ -1,5 +1,6 @@
 package moe.lizi.kusuri.ui.log
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,13 +38,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import kotlin.math.round
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.log.LogEntryErrors
 import moe.lizi.kusuri.domain.log.LogEntryFormState
@@ -52,6 +57,7 @@ import moe.lizi.kusuri.domain.log.LogFormField
 import moe.lizi.kusuri.domain.model.LogEntry
 import moe.lizi.kusuri.domain.model.LogEntryType
 import moe.lizi.kusuri.domain.model.Medication
+import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatDate
 import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
@@ -59,6 +65,7 @@ import moe.lizi.kusuri.ui.components.KusuriDatePickerDialog
 import moe.lizi.kusuri.ui.components.KusuriTimePickerDialog
 import moe.lizi.kusuri.ui.components.SettingRow
 import moe.lizi.kusuri.ui.components.dayLabel
+import moe.lizi.kusuri.ui.components.severityDots
 
 @Composable
 fun LogScreen(
@@ -66,6 +73,7 @@ fun LogScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val editor by viewModel.editor.collectAsStateWithLifecycle()
+    var trendSymptom by remember { mutableStateOf<String?>(null) }
     val zone = ZoneId.systemDefault()
     val medicationNames = remember(state.medications) {
         state.medications.associate { it.id to it.name }
@@ -101,6 +109,11 @@ fun LogScreen(
                             entry = entry,
                             medicationName = entry.medicationId?.let { medicationNames[it] },
                             onClick = { viewModel.startEdit(entry) },
+                            onTrend = if (entry.type == LogEntryType.SYMPTOM && entry.symptom != null) {
+                                { trendSymptom = entry.symptom }
+                            } else {
+                                null
+                            },
                             zone = zone,
                         )
                     }
@@ -127,6 +140,17 @@ fun LogScreen(
             onDelete = if (editorState.entryId != null) viewModel::deleteEditing else null,
         )
     }
+
+    trendSymptom?.let { symptom ->
+        SymptomTrendDialog(
+            symptom = symptom,
+            entries = state.days
+                .flatMap { it.entries }
+                .filter { it.type == LogEntryType.SYMPTOM && it.symptom == symptom },
+            today = state.today,
+            onDismiss = { trendSymptom = null },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,6 +159,7 @@ private fun LogEntryCard(
     entry: LogEntry,
     medicationName: String?,
     onClick: () -> Unit,
+    onTrend: (() -> Unit)?,
     zone: ZoneId,
 ) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
@@ -163,6 +188,11 @@ private fun LogEntryCard(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
+                        }
+                        if (onTrend != null) {
+                            TextButton(onClick = onTrend) {
+                                Text(stringResource(R.string.log_trend))
+                            }
                         }
                     }
 
@@ -429,12 +459,82 @@ private fun supportingLogError(
 }
 
 /** 严重程度用点表示:●●●○○(1–5)。 */
-private fun severityDots(severity: Int): String {
-    val filled = severity.coerceIn(0, MAX_LEVEL)
-    val empty = (MAX_LEVEL - filled).coerceAtLeast(0)
-    return "●".repeat(filled) + "○".repeat(empty)
-}
-
 private const val MIN_LEVEL = 1
 private const val MAX_LEVEL = 5
 private const val SUGGESTION_LIMIT = 12
+private const val TREND_DAYS = 30
+
+@Composable
+private fun SymptomTrendDialog(
+    symptom: String,
+    entries: List<LogEntry>,
+    today: LocalDate,
+    onDismiss: () -> Unit,
+) {
+    val windowStart = today.minusDays(TREND_DAYS - 1L)
+    // 同一天多条取最重的一条,趋势线才读得出来。
+    val points = entries
+        .mapNotNull { entry -> entry.severity?.let { entry.at to it } }
+        .groupBy { (at, _) -> at.atZone(ZoneId.systemDefault()).toLocalDate() }
+        .mapValues { (_, sameDay) -> sameDay.maxOf { it.second } }
+        .filterKeys { !it.isBefore(windowStart) && !it.isAfter(today) }
+        .toSortedMap()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(symptom) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (points.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.log_trend_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    SeverityTrendChart(points = points, windowStart = windowStart)
+                    Text(
+                        text = stringResource(
+                            R.string.log_trend_summary,
+                            points.size,
+                            formatAmount(round(points.values.average() * 10) / 10),
+                            points.values.max(),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_confirm)) }
+        },
+    )
+}
+
+@Composable
+private fun SeverityTrendChart(points: Map<LocalDate, Int>, windowStart: LocalDate) {
+    val lineColor = MaterialTheme.colorScheme.primary
+    val gridColor = MaterialTheme.colorScheme.outlineVariant
+
+    Canvas(modifier = Modifier.fillMaxWidth().height(CHART_HEIGHT)) {
+        fun x(date: LocalDate): Float {
+            val dayIndex = ChronoUnit.DAYS.between(windowStart, date).toInt()
+                .coerceIn(0, TREND_DAYS - 1)
+            return size.width * (dayIndex + 0.5f) / TREND_DAYS
+        }
+
+        fun y(severity: Int): Float =
+            size.height * (1f - (severity - MIN_LEVEL).toFloat() / (MAX_LEVEL - MIN_LEVEL))
+
+        for (level in MIN_LEVEL..MAX_LEVEL) {
+            drawLine(gridColor, Offset(0f, y(level)), Offset(size.width, y(level)), strokeWidth = 1f)
+        }
+
+        val offsets = points.map { (date, severity) -> Offset(x(date), y(severity)) }
+        offsets.zipWithNext { from, to -> drawLine(lineColor, from, to, strokeWidth = 3f) }
+        offsets.forEach { point -> drawCircle(lineColor, radius = 5f, center = point) }
+    }
+}
+
+private val CHART_HEIGHT = 120.dp

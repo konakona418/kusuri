@@ -1,6 +1,7 @@
 package moe.lizi.kusuri.data.backup
 
 import moe.lizi.kusuri.data.db.DoseRecordEntity
+import moe.lizi.kusuri.data.db.LogEntryEntity
 import moe.lizi.kusuri.data.db.MedicationEntity
 import moe.lizi.kusuri.data.db.MedicationTimeEntity
 import moe.lizi.kusuri.data.db.StockEventEntity
@@ -13,4 +14,5 @@ data class BackupPayload(
     val medicationTimes: List<MedicationTimeEntity>,
     val stockEvents: List<StockEventEntity>,
     val doseRecords: List<DoseRecordEntity>,
+    val logEntries: List<LogEntryEntity>,
 )

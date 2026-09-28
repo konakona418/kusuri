@@ -67,7 +67,7 @@ class BackupServiceTest {
     )
 
     @Test
-    fun `export then import restores the same data`() = runTest {
+    fun `export then import restores the same data including logs`() = runTest {
         val id = medicationRepository.save(medication())
         medicationRepository.addStock(id, StockEventType.INITIAL, 30.0)
         db.doseRecordDao().insert(
@@ -78,6 +78,16 @@ class BackupServiceTest {
                 amount = 0.5,
                 action = "TAKEN",
                 source = "IN_APP",
+            ),
+        )
+        db.logEntryDao().insert(
+            moe.lizi.kusuri.data.db.LogEntryEntity(
+                type = "SYMPTOM",
+                at = clock.millis(),
+                symptom = "恶心",
+                severity = 4,
+                medicationId = id,
+                note = null,
             ),
         )
         val backup = service.exportJson()
@@ -93,6 +103,10 @@ class BackupServiceTest {
         assertEquals("二甲双胍", restored.name)
         assertEquals(29.5, restored.remainingStock, 0.0)
         assertEquals(1, db.doseRecordDao().getAll().size)
+        val restoredLog = db.logEntryDao().getAll().single()
+        assertEquals("恶心", restoredLog.symptom)
+        assertEquals(4, restoredLog.severity)
+        assertEquals(id, restoredLog.medicationId)
     }
 
     @Test
@@ -124,13 +138,39 @@ class BackupServiceTest {
                 source = DoseSource.IN_APP.name,
             ),
         )
+        db.logEntryDao().insert(
+            moe.lizi.kusuri.data.db.LogEntryEntity(
+                type = "SYMPTOM",
+                at = clock.millis(),
+                symptom = "恶心",
+                severity = 4,
+                medicationId = id,
+                note = null,
+            ),
+        )
+        db.logEntryDao().insert(
+            moe.lizi.kusuri.data.db.LogEntryEntity(
+                type = "NOTE",
+                at = clock.millis(),
+                symptom = null,
+                severity = null,
+                medicationId = null,
+                note = "今天精神不错",
+            ),
+        )
         val labels = CsvLabels(
-            header = listOf("药物", "剂量", "计划时间", "实际时间", "状态", "来源"),
+            doseSectionTitle = "服药记录",
+            doseHeader = listOf("药物", "剂量", "计划时间", "实际时间", "状态", "来源"),
             taken = "已服用",
             skipped = "已跳过",
             sourceInApp = "应用内",
             sourceNotification = "通知",
             sourceBackfill = "补记",
+            logSectionTitle = "症状与随笔",
+            logHeader = listOf("时间", "类型", "症状", "程度", "关联药物", "备注"),
+            logTypeSymptom = "症状",
+            logTypeNote = "随手记",
+            logLinkedNone = "无",
         )
 
         val csv = service.exportCsv(
@@ -139,9 +179,12 @@ class BackupServiceTest {
             labels = labels,
         )
 
-        assertTrue(csv.startsWith("药物,剂量,计划时间,实际时间,状态,来源\r\n"))
+        assertTrue(csv.startsWith("服药记录\r\n药物,剂量,计划时间,实际时间,状态,来源\r\n"))
         assertTrue(csv.contains("二甲双胍,0.5 粒"))
         assertTrue(csv.contains("已服用"))
         assertTrue(csv.contains("应用内"))
+        assertTrue(csv.contains("症状与随笔\r\n时间,类型,症状,程度,关联药物,备注"))
+        assertTrue(csv.contains("症状,恶心,4"))
+        assertTrue(csv.contains("随手记"))
     }
 }

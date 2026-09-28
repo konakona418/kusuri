@@ -24,6 +24,9 @@ interface LogEntryDao {
     @Query("SELECT * FROM log_entries")
     suspend fun getAll(): List<LogEntryEntity>
 
+    @Insert
+    suspend fun insertAll(entries: List<LogEntryEntity>)
+
     @Query("DELETE FROM log_entries")
     suspend fun deleteAll()
 

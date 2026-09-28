@@ -8,24 +8,33 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import moe.lizi.kusuri.data.db.KusuriDatabase
+import moe.lizi.kusuri.data.db.LogEntryEntity
+import moe.lizi.kusuri.data.db.MedicationEntity
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseSource
+import moe.lizi.kusuri.domain.model.LogEntryType
 import moe.lizi.kusuri.domain.util.formatAmount
 
 /** 导出 CSV 需要本地化的标签,由界面(资源)提供,数据层不依赖 strings.xml。 */
 data class CsvLabels(
-    val header: List<String>,
+    val doseSectionTitle: String,
+    val doseHeader: List<String>,
     val taken: String,
     val skipped: String,
     val sourceInApp: String,
     val sourceNotification: String,
     val sourceBackfill: String,
+    val logSectionTitle: String,
+    val logHeader: List<String>,
+    val logTypeSymptom: String,
+    val logTypeNote: String,
+    val logLinkedNone: String,
 )
 
 /**
  * 导入导出的落地:
- * - JSON 为全量备份/恢复(换机);
- * - CSV 为服药记录(给医生看),按时间区间。
+ * - JSON 为全量备份/恢复(换机),含日志;
+ * - CSV 为审阅用文件(给医生看),按时间区间,分"服药记录"与"症状与随笔"两段。
  * 通过 SAF 读写,全程无需网络(docs/plan.md §2)。
  */
 class BackupService(
@@ -42,6 +51,7 @@ class BackupService(
             medicationTimes = db.medicationDao().getAllTimes(),
             stockEvents = db.medicationDao().getAllStockEvents(),
             doseRecords = db.doseRecordDao().getAll(),
+            logEntries = db.logEntryDao().getAll(),
         )
         return BackupJson.encode(payload)
     }
@@ -51,6 +61,7 @@ class BackupService(
         val payload = BackupJson.decode(json)
         db.withTransaction {
             db.doseRecordDao().deleteAll()
+            db.logEntryDao().deleteAll()
             db.medicationDao().deleteAllStockEvents()
             db.medicationDao().deleteAllTimes()
             db.medicationDao().deleteAll()
@@ -58,6 +69,7 @@ class BackupService(
             db.medicationDao().insertTimes(payload.medicationTimes)
             db.medicationDao().insertStockEvents(payload.stockEvents)
             db.doseRecordDao().insertAll(payload.doseRecords)
+            db.logEntryDao().insertAll(payload.logEntries)
         }
         return payload.medications.size
     }
@@ -65,8 +77,9 @@ class BackupService(
     suspend fun exportCsv(from: Instant, to: Instant, labels: CsvLabels): String {
         val medications = db.medicationDao().getAll().associateBy { it.id }
         val zone = ZoneId.systemDefault()
-        val rows = db.doseRecordDao().getAll()
-            .filter { it.actualAt >= from.toEpochMilli() && it.actualAt < to.toEpochMilli() }
+
+        val doseRows = db.doseRecordDao().getAll()
+            .filter { inWindow(it.actualAt, from, to) }
             .sortedBy { it.actualAt }
             .map { record ->
                 val medication = medications[record.medicationId]
@@ -81,7 +94,19 @@ class BackupService(
                     sourceLabel(source, labels),
                 )
             }
-        return toCsv(labels.header, rows)
+
+        val logRows = db.logEntryDao().getAll()
+            .filter { inWindow(it.at, from, to) }
+            .sortedBy { it.at }
+            .map { entry -> logRow(entry, medications, labels, zone) }
+
+        return buildString {
+            append(labels.doseSectionTitle).append("\r\n")
+            append(toCsv(labels.doseHeader, doseRows))
+            append("\r\n")
+            append(labels.logSectionTitle).append("\r\n")
+            append(toCsv(labels.logHeader, logRows))
+        }
     }
 
     fun writeText(uri: Uri, text: String) {
@@ -95,6 +120,26 @@ class BackupService(
             ?: error("cannot open input stream for the selected file")
         return stream.use { it.readBytes().toString(Charsets.UTF_8) }
     }
+
+    private fun logRow(
+        entry: LogEntryEntity,
+        medications: Map<Long, MedicationEntity>,
+        labels: CsvLabels,
+        zone: ZoneId,
+    ): List<String> {
+        val type = runCatching { LogEntryType.valueOf(entry.type) }.getOrDefault(LogEntryType.SYMPTOM)
+        return listOf(
+            formatInstant(entry.at, zone),
+            if (type == LogEntryType.SYMPTOM) labels.logTypeSymptom else labels.logTypeNote,
+            entry.symptom.orEmpty(),
+            entry.severity?.toString().orEmpty(),
+            entry.medicationId?.let { medications[it]?.name } ?: labels.logLinkedNone,
+            entry.note.orEmpty(),
+        )
+    }
+
+    private fun inWindow(millis: Long, from: Instant, to: Instant): Boolean =
+        millis >= from.toEpochMilli() && millis < to.toEpochMilli()
 
     private fun sourceLabel(source: DoseSource?, labels: CsvLabels): String = when (source) {
         DoseSource.NOTIFICATION -> labels.sourceNotification

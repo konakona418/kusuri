@@ -1,6 +1,7 @@
 package moe.lizi.kusuri.data.backup
 
 import moe.lizi.kusuri.data.db.DoseRecordEntity
+import moe.lizi.kusuri.data.db.LogEntryEntity
 import moe.lizi.kusuri.data.db.MedicationEntity
 import moe.lizi.kusuri.data.db.MedicationTimeEntity
 import moe.lizi.kusuri.data.db.StockEventEntity
@@ -9,11 +10,12 @@ import org.json.JSONObject
 
 /**
  * 备份的 JSON 编解码。格式版本与 Room schema 解耦:
- * [BackupJson.FORMAT_VERSION] 变化即表示字段含义变化,导入时校验。
+ * v1(无日志) 与 v2(含日志) 都能导入;导出始终写当前版本。
  */
 object BackupJson {
 
-    const val FORMAT_VERSION = 1
+    const val FORMAT_VERSION = 2
+    private const val MIN_SUPPORTED_VERSION = 1
 
     fun encode(payload: BackupPayload): String {
         val root = JSONObject()
@@ -24,14 +26,16 @@ object BackupJson {
         root.put("medicationTimes", payload.medicationTimes.map(::encodeTime).toJsonArray())
         root.put("stockEvents", payload.stockEvents.map(::encodeStockEvent).toJsonArray())
         root.put("doseRecords", payload.doseRecords.map(::encodeDoseRecord).toJsonArray())
+        root.put("logEntries", payload.logEntries.map(::encodeLogEntry).toJsonArray())
         return root.toString(2)
     }
 
     fun decode(json: String): BackupPayload {
         val root = JSONObject(json)
         val formatVersion = root.getInt("formatVersion")
-        require(formatVersion == FORMAT_VERSION) {
-            "unsupported backup format version: $formatVersion (expected $FORMAT_VERSION)"
+        require(formatVersion in MIN_SUPPORTED_VERSION..FORMAT_VERSION) {
+            "unsupported backup format version: $formatVersion " +
+                "(supported $MIN_SUPPORTED_VERSION..$FORMAT_VERSION)"
         }
         return BackupPayload(
             formatVersion = formatVersion,
@@ -40,6 +44,8 @@ object BackupJson {
             medicationTimes = root.getJSONArray("medicationTimes").mapObjects(::decodeTime),
             stockEvents = root.getJSONArray("stockEvents").mapObjects(::decodeStockEvent),
             doseRecords = root.getJSONArray("doseRecords").mapObjects(::decodeDoseRecord),
+            // v1 备份没有日志段。
+            logEntries = root.optJSONArray("logEntries")?.mapObjects(::decodeLogEntry).orEmpty(),
         )
     }
 
@@ -131,6 +137,26 @@ object BackupJson {
         amount = json.getDouble("amount"),
         action = json.getString("action"),
         source = json.getString("source"),
+    )
+
+    private fun encodeLogEntry(entry: LogEntryEntity) = JSONObject().apply {
+        put("id", entry.id)
+        put("type", entry.type)
+        put("at", entry.at)
+        put("symptom", entry.symptom)
+        put("severity", entry.severity)
+        put("medicationId", entry.medicationId)
+        put("note", entry.note)
+    }
+
+    private fun decodeLogEntry(json: JSONObject) = LogEntryEntity(
+        id = json.getLong("id"),
+        type = json.getString("type"),
+        at = json.getLong("at"),
+        symptom = json.stringOrNull("symptom"),
+        severity = json.intOrNull("severity"),
+        medicationId = json.longOrNull("medicationId"),
+        note = json.stringOrNull("note"),
     )
 
     private fun JSONObject.stringOrNull(name: String): String? =

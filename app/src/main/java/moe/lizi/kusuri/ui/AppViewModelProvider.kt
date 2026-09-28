@@ -54,6 +54,7 @@ object AppViewModelProvider {
             HistoryViewModel(
                 medicationRepository = container.medicationRepository,
                 doseRecordRepository = container.doseRecordRepository,
+                logEntryRepository = container.logEntryRepository,
                 settings = container.settingsRepository,
                 engine = container.scheduleEngine,
                 recordDose = container.recordDose,

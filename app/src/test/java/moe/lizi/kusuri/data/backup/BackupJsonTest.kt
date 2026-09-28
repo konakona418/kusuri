@@ -1,11 +1,13 @@
 package moe.lizi.kusuri.data.backup
 
 import moe.lizi.kusuri.data.db.DoseRecordEntity
+import moe.lizi.kusuri.data.db.LogEntryEntity
 import moe.lizi.kusuri.data.db.MedicationEntity
 import moe.lizi.kusuri.data.db.MedicationTimeEntity
 import moe.lizi.kusuri.data.db.StockEventEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -82,6 +84,26 @@ class BackupJsonTest {
                 source = "IN_APP",
             ),
         ),
+        logEntries = listOf(
+            LogEntryEntity(
+                id = 1L,
+                type = "SYMPTOM",
+                at = 555L,
+                symptom = "恶心",
+                severity = 4,
+                medicationId = 1L,
+                note = null,
+            ),
+            LogEntryEntity(
+                id = 2L,
+                type = "NOTE",
+                at = 666L,
+                symptom = null,
+                severity = null,
+                medicationId = null,
+                note = "今天精神不错",
+            ),
+        ),
     )
 
     @Test
@@ -95,8 +117,21 @@ class BackupJsonTest {
 
     @Test
     fun `unknown format version is rejected`() {
-        val json = BackupJson.encode(payload()).replace("\"formatVersion\": 1", "\"formatVersion\": 99")
+        val json = BackupJson.encode(payload()).replace("\"formatVersion\": 2", "\"formatVersion\": 99")
 
         assertThrows(IllegalArgumentException::class.java) { BackupJson.decode(json) }
+    }
+
+    @Test
+    fun `legacy v1 backups without logs still import`() {
+        val legacy = """
+            {"formatVersion":1,"exportedAt":1,"medications":[],"medicationTimes":[],
+             "stockEvents":[],"doseRecords":[]}
+        """.trimIndent()
+
+        val payload = BackupJson.decode(legacy)
+
+        assertTrue(payload.logEntries.isEmpty())
+        assertTrue(payload.medications.isEmpty())
     }
 }
