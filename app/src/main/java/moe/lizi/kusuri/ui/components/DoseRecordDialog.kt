@@ -77,12 +77,10 @@ fun DoseRecordDialog(
                     onClick = { showTimePicker = true },
                 )
                 if (onDelete != null) {
-                    TextButton(onClick = onDelete) {
-                        Text(
-                            text = stringResource(R.string.record_dialog_delete),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                    LongPressDeleteLabel(
+                        text = longPressDeleteRecordLabel(),
+                        onLongPress = onDelete,
+                    )
                 }
             }
         },

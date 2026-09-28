@@ -19,7 +19,12 @@ fun DoseStatusText(status: DoseStatus, modifier: Modifier = Modifier) {
     val style = MaterialTheme.typography.bodySmall
 
     when (status) {
-        DoseStatus.Pending -> Unit
+        DoseStatus.Pending -> Text(
+            text = stringResource(R.string.status_pending),
+            style = style,
+            color = muted,
+            modifier = modifier,
+        )
 
         DoseStatus.Overdue -> Text(
             text = stringResource(R.string.status_overdue),

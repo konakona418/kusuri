@@ -63,8 +63,10 @@ import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.KusuriDatePickerDialog
 import moe.lizi.kusuri.ui.components.KusuriTimePickerDialog
+import moe.lizi.kusuri.ui.components.LongPressDeleteLabel
 import moe.lizi.kusuri.ui.components.SettingRow
 import moe.lizi.kusuri.ui.components.dayLabel
+import moe.lizi.kusuri.ui.components.longPressDeleteRecordLabel
 import moe.lizi.kusuri.ui.components.severityDots
 
 @Composable
@@ -344,12 +346,10 @@ private fun LogEditorDialog(
                 }
 
                 if (onDelete != null) {
-                    TextButton(onClick = onDelete) {
-                        Text(
-                            text = stringResource(R.string.log_delete),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
+                    LongPressDeleteLabel(
+                        text = longPressDeleteRecordLabel(),
+                        onLongPress = onDelete,
+                    )
                 }
             }
         },

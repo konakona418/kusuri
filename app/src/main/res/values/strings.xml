@@ -43,6 +43,7 @@
     <string name="today_notifications_denied">开启通知权限才能收到服药提醒。</string>
     <string name="today_exact_alarm_denied">未授予精确闹钟权限,提醒可能延迟。</string>
     <string name="status_overdue">到时间了</string>
+    <string name="status_pending">待服用</string>
     <string name="status_taken_at">已服用 %1$s</string>
     <string name="status_skipped">已跳过</string>
     <string name="status_missed">已错过</string>
@@ -158,6 +159,8 @@
     <!-- 删除数据(双重确认) -->
     <string name="settings_section_danger">危险操作</string>
     <string name="settings_delete_all_data">删除全部数据</string>
+    <string name="settings_delete_all_data_long_press">长按删除全部数据</string>
+    <string name="delete_long_press">长按删除记录</string>
     <string name="settings_delete_all_data_description">删除所有药物、服药记录、库存与日志。设置(提醒声音、宽限窗口等)会保留。</string>
     <string name="wipe_confirm_title">删除全部数据?</string>
     <string name="wipe_confirm_body">所有药物、服药记录、库存与日志都会被删除。建议先用上面的「导出完整备份(JSON)」留一份。</string>

@@ -290,9 +290,11 @@ private fun DoseRow(
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
                     text = time,
                     style = MaterialTheme.typography.titleMedium,
@@ -300,44 +302,49 @@ private fun DoseRow(
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(
-                        text = item.medication.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.detail_dose,
-                            formatAmount(item.medication.defaultDose),
-                            item.medication.unit,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            // 统一的操作行:状态文字靠左(与时间左端对齐),所有操作一律靠右。
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                DoseStatusText(item.status)
-                Spacer(Modifier.weight(1f))
-                when (item.status) {
-                    DoseStatus.Pending, DoseStatus.Overdue -> {
-                        TextButton(onClick = onTaken) { Text(stringResource(R.string.action_taken)) }
-                        TextButton(onClick = onSkip) { Text(stringResource(R.string.action_skip)) }
+                    // 第一行:药名 + 剂量(左),状态(右)——与历史页同构。
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = item.medication.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.detail_dose,
+                                    formatAmount(item.medication.defaultDose),
+                                    item.medication.unit,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        DoseStatusText(item.status)
                     }
+                    // 第二行:操作统一放在内容列里(与药名左对齐)。
+                    when (item.status) {
+                        DoseStatus.Pending, DoseStatus.Overdue -> Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            TextButton(onClick = onTaken) { Text(stringResource(R.string.action_taken)) }
+                            TextButton(onClick = onSkip) { Text(stringResource(R.string.action_skip)) }
+                        }
 
-                    DoseStatus.Missed, DoseStatus.Untracked -> {
-                        TextButton(onClick = onBackfill) { Text(stringResource(R.string.action_backfill)) }
+                        DoseStatus.Missed, DoseStatus.Untracked -> Row {
+                            TextButton(onClick = onBackfill) {
+                                Text(stringResource(R.string.action_backfill))
+                            }
+                        }
+
+                        else -> Unit
                     }
-
-                    else -> Unit
                 }
             }
         }
