@@ -1,5 +1,6 @@
 package moe.lizi.kusuri.alarm
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -30,6 +31,27 @@ object ReliabilityChecks {
             context.startActivity(
                 Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                     .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+            )
+        }
+    }
+
+    /**
+     * 选中的那条提醒渠道是不是在系统里被关掉了(`IMPORTANCE_NONE`)。
+     * 渠道还没建出来时返回 false:那是"没开始用",不是故障。
+     */
+    fun reminderChannelBlocked(context: Context, channelId: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return false
+        return manager.getNotificationChannel(channelId)?.importance == NotificationManager.IMPORTANCE_NONE
+    }
+
+    /** 官方建议的做法:渠道的声响/震动/重要性由用户掌控,应用只给一个直达入口。 */
+    fun openReminderChannelSettings(context: Context, channelId: String) {
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .putExtra(Settings.EXTRA_CHANNEL_ID, channelId),
             )
         }
     }

@@ -29,19 +29,15 @@
     <string name="action_open_settings">去设置</string>
 
     <!-- 通知 -->
-    <string name="notification_title">该服药了:%1$s</string>
+    <string name="notification_title">该服药了：%1$s</string>
     <string name="notification_text">%1$s %2$s · 计划 %3$s</string>
     <string name="notification_text_with_meal">%1$s · %2$s</string>
-    <string name="channel_dose_reminders_silent_name">用药提醒(静音)</string>
-    <string name="channel_dose_reminders_silent_description">只显示通知,不响铃、不震动</string>
-    <string name="channel_dose_reminders_alert_name">用药提醒(响铃)</string>
-    <string name="channel_dose_reminders_alert_description">按计划响铃并震动提醒</string>
 
     <!-- 今日 -->
     <string name="today_empty">今天没有需要提醒的药物。</string>
     <string name="today_section_title">今天</string>
     <string name="today_notifications_denied">开启通知权限才能收到服药提醒。</string>
-    <string name="today_exact_alarm_denied">未授予精确闹钟权限,提醒可能延迟。</string>
+    <string name="today_exact_alarm_denied">无精确闹钟权限，提醒可能延迟</string>
     <string name="status_overdue">到时间了</string>
     <string name="status_pending">待服用</string>
     <string name="status_taken_at">已服用 %1$s</string>
@@ -54,20 +50,20 @@
     <string name="prn_record_action">记录</string>
     <string name="prn_record_title">记录 %1$s</string>
     <string name="prn_record_amount">数量</string>
-    <string name="prn_dialog_last">距上次 %1$s(建议间隔 %2$s)</string>
+    <string name="prn_dialog_last">距上次 %1$s（建议 %2$s）</string>
     <string name="prn_dialog_today_count">今日 %1$d 次</string>
     <string name="prn_row_last_today">距上次 %1$s · 今日 %2$d 次</string>
     <string name="prn_row_today">今日 %1$d 次</string>
     <string name="prn_row_none">尚未记录</string>
     <string name="prn_safety_max">今日已达上限 %1$d 次</string>
-    <string name="stock_banner_single">%1$s 库存不足,记得补货。</string>
-    <string name="stock_banner_multiple">有 %1$d 味药库存不足,记得补货。</string>
+    <string name="stock_banner_single">%1$s 库存不足，记得补货</string>
+    <string name="stock_banner_multiple">有 %1$d 味药库存不足，记得补货</string>
     <string name="action_add_medication">添加药物</string>
 
     <!-- 占位与设置 -->
     <string name="placeholder_coming_soon">功能开发中</string>
     <string name="settings_about_title">关于</string>
-    <string name="settings_about_body">Kusuri(薬)是一个个人用药提醒与记录应用,无遥测,数据只保存在你的设备上。吃完药就睡觉吧。</string>
+    <string name="settings_about_body">Kusuri（薬）：个人用药提醒与记录，无遥测，数据只在本机。吃完药就睡觉吧。</string>
 
     <!-- 可靠性检查与设置 -->
     <string name="settings_section_reliability">提醒健康检查</string>
@@ -78,23 +74,21 @@
     <string name="reliability_ok">已就绪</string>
     <string name="reliability_pending">待处理</string>
     <string name="settings_section_general">常规</string>
-    <string name="settings_reminder_sound">提醒声音与震动</string>
-    <string name="settings_reminder_sound_description">关闭后只显示通知</string>
     <string name="settings_grace_period">宽限窗口</string>
     <string name="settings_grace_period_value">%1$d 小时</string>
     <string name="grace_dialog_title">宽限窗口</string>
-    <string name="grace_dialog_hint">计划时间后多久仍未处理即判为错过(1–12 小时)</string>
+    <string name="grace_dialog_hint">计划时间后多久仍未处理算错过（1–12 小时）</string>
 
     <!-- 备份与导出 -->
     <string name="settings_section_backup">备份与导出</string>
-    <string name="settings_backup_description">数据只保存在本机。导出与导入通过系统文件选择器;也可以在你手动开启时经局域网直连你自己的电脑(不经任何服务器)。</string>
-    <string name="backup_export_csv">导出服药记录(CSV)</string>
+    <string name="settings_backup_description">数据只在本机。可用系统文件选择器导出导入，或手动经局域网直连自己的电脑（不经服务器）。</string>
+    <string name="backup_export_csv">导出服药记录（CSV）</string>
     <string name="csv_range_title">导出时间范围</string>
     <string name="csv_range_30">近 30 天</string>
     <string name="csv_range_90">近 90 天</string>
     <string name="csv_range_all">全部记录</string>
-    <string name="backup_export_json">导出完整备份(JSON)</string>
-    <string name="backup_import_json">导入备份(JSON)</string>
+    <string name="backup_export_json">导出完整备份（JSON）</string>
+    <string name="backup_import_json">导入备份（JSON）</string>
     <string name="backup_import_warning">导入会覆盖本机现有全部数据。</string>
     <string name="backup_csv_exported">已导出服药记录</string>
     <string name="backup_json_exported">已导出完整备份</string>
@@ -124,7 +118,7 @@
     <string name="log_type_symptom">症状</string>
     <string name="log_type_note">随手记</string>
     <string name="log_symptom_label">症状</string>
-    <string name="log_symptom_hint">如:恶心、头晕</string>
+    <string name="log_symptom_hint">如：恶心、头晕</string>
     <string name="log_severity">严重程度</string>
     <string name="log_severity_hint">1 轻 – 5 重</string>
     <string name="log_note">备注</string>
@@ -133,7 +127,7 @@
     <string name="log_time">时间</string>
     <string name="log_link_medication">关联药物</string>
     <string name="log_link_none">无</string>
-    <string name="log_linked_to">关联:%1$s</string>
+    <string name="log_linked_to">关联：%1$s</string>
     <string name="log_editor_title_new">新建记录</string>
     <string name="log_editor_title_edit">编辑记录</string>
     <string name="log_delete">删除记录</string>
@@ -161,12 +155,12 @@
     <string name="settings_delete_all_data">删除全部数据</string>
     <string name="settings_delete_all_data_long_press">长按删除全部数据</string>
     <string name="delete_long_press">长按删除记录</string>
-    <string name="settings_delete_all_data_description">删除所有药物、服药记录、库存与日志。设置(提醒声音、宽限窗口等)会保留。</string>
-    <string name="wipe_confirm_title">删除全部数据?</string>
-    <string name="wipe_confirm_body">所有药物、服药记录、库存与日志都会被删除。建议先用上面的「导出完整备份(JSON)」留一份。</string>
+    <string name="settings_delete_all_data_description">删除全部药物、记录、库存与日志。设置会保留。</string>
+    <string name="wipe_confirm_title">删除全部数据？</string>
+    <string name="wipe_confirm_body">药物、记录、库存与日志都会删除。建议先导出完整备份。</string>
     <string name="wipe_confirm_continue">继续</string>
     <string name="wipe_confirm_final_title">再次确认</string>
-    <string name="wipe_confirm_final_body">此操作不可恢复。确定要删除全部数据吗?</string>
+    <string name="wipe_confirm_final_body">不可恢复。确定删除全部数据？</string>
     <string name="wipe_confirm_final_action">删除</string>
     <string name="wipe_done">数据已全部删除</string>
 
@@ -177,9 +171,9 @@
 
     <!-- 药物列表 -->
     <string name="medications_empty_title">还没有药物</string>
-    <string name="medications_empty_body">点右下角的加号,添加你正在服用的药物。</string>
+    <string name="medications_empty_body">点右下角加号，添加你在吃的药</string>
     <string name="medications_completed_section">已完成</string>
-    <string name="medications_archived_section">已归档 (%1$d)</string>
+    <string name="medications_archived_section">已归档（%1$d）</string>
     <string name="medication_status_completed">已完成</string>
     <string name="medication_status_archived">已归档</string>
     <string name="list_separator">、</string>
@@ -201,8 +195,8 @@
     <string name="stock_remaining">剩余 %1$s %2$s</string>
     <string name="stock_low">库存不足</string>
     <string name="detail_threshold">低于 %1$s %2$s 时提醒补药</string>
-    <string name="stock_alert_title">库存不足:%1$s</string>
-    <string name="stock_alert_text">剩余 %1$s %2$s,记得补货。</string>
+    <string name="stock_alert_title">库存不足：%1$s</string>
+    <string name="stock_alert_text">剩余 %1$s %2$s，记得补货</string>
     <string name="channel_stock_alerts_name">补药提醒</string>
     <string name="channel_stock_alerts_description">库存不足时提醒补货</string>
 
@@ -234,15 +228,15 @@
     <string name="action_extend_course">延长疗程</string>
 
     <!-- 删除确认 -->
-    <string name="delete_dialog_title">删除“%1$s”?</string>
-    <string name="delete_dialog_body">将同时删除该药物的全部记录,且无法恢复。</string>
+    <string name="delete_dialog_title">删除“%1$s”？</string>
+    <string name="delete_dialog_body">该药的全部记录会一起删除，无法恢复。</string>
 
     <!-- 表单 -->
     <string name="form_section_basic">基本信息</string>
     <string name="form_name">药物名称</string>
     <string name="form_unit">单位</string>
     <string name="form_unit_default">粒</string>
-    <string name="form_unit_hint">如:粒、片、ml</string>
+    <string name="form_unit_hint">如：粒、片、ml</string>
     <string name="form_dose">每次服用量</string>
     <string name="form_meal_tag">服用时机</string>
     <string name="form_meal_none">无</string>
@@ -257,9 +251,9 @@
     <string name="form_interval_unit_days">天</string>
     <string name="form_interval_anchor_time">首次时刻</string>
     <string name="form_interval_anchor_date">首次日期</string>
-    <string name="form_prn_min_interval">最少间隔(分钟)</string>
-    <string name="form_prn_max_per_day">每日上限(次)</string>
-    <string name="form_prn_optional">选填;留空则不检查</string>
+    <string name="form_prn_min_interval">最少间隔（分钟）</string>
+    <string name="form_prn_max_per_day">每日上限（次）</string>
+    <string name="form_prn_optional">选填，留空则不检查</string>
     <string name="form_section_course">疗程</string>
     <string name="form_course_start">开始日期</string>
     <string name="form_course_has_end">设置结束日期</string>
@@ -269,7 +263,7 @@
     <string name="form_stock_edit_hint">修改后会记为一笔盘点调整</string>
     <string name="form_threshold">低于多少提醒补药</string>
     <string name="form_section_notes">备注</string>
-    <string name="form_notes_hint">如:随餐、医生叮嘱…</string>
+    <string name="form_notes_hint">如：随餐、医生叮嘱…</string>
 
     <!-- 表单错误 -->
     <string name="form_error_required">必填</string>
@@ -300,6 +294,31 @@
         <item>周日</item>
     </string-array>
 
+    <!-- 提醒等级:对应 Android 通知渠道的重要性,一个等级一条渠道 -->
+    <string name="settings_reminder_level">提醒等级</string>
+    <string name="reminder_level_silent">静默</string>
+    <string name="reminder_level_silent_description">只在通知栏</string>
+    <string name="reminder_level_vibrate">只震动</string>
+    <string name="reminder_level_vibrate_description">不响铃</string>
+    <string name="reminder_level_sound">响亮</string>
+    <string name="reminder_level_sound_description">响铃、震动</string>
+    <string name="reminder_level_banner">横幅</string>
+    <string name="reminder_level_banner_description">响铃、震动、顶部弹出</string>
+    <string name="settings_reminder_blocked">这条渠道在系统里被关掉了</string>
+    <string name="action_system_settings">系统设置</string>
+    <string name="action_close">关闭</string>
+
+    <string name="channel_dose_silent_name">服药提醒（静默）</string>
+    <string name="channel_dose_silent_description">只在通知栏，不响不震</string>
+    <string name="channel_dose_vibrate_name">服药提醒（只震动）</string>
+    <string name="channel_dose_vibrate_description">只震动，不响铃</string>
+    <string name="channel_dose_sound_name">服药提醒（响亮）</string>
+    <string name="channel_dose_sound_description">响铃、震动</string>
+    <string name="channel_dose_banner_name">服药提醒（横幅）</string>
+    <string name="channel_dose_banner_description">响铃、震动，顶部弹出</string>
+
+    <string name="lan_export_sent_sha">sha256 %1$s</string>
+
     <!-- 记录编辑与补记 -->
     <string name="record_dialog_title">%1$s · 计划 %2$s</string>
     <string name="record_dialog_actual_date">实际日期</string>
@@ -309,7 +328,7 @@
 
     <!-- 局域网导出(docs/lan-export.md):手机扫码/手输目标,把导出文件推给自己电脑上的接收脚本 -->
     <string name="title_lan_export">局域网导出</string>
-    <string name="settings_backup_lan_export">局域网导出(扫码到电脑)</string>
+    <string name="settings_backup_lan_export">局域网导出（扫码）</string>
     <string name="lan_export_scan_hint">对准电脑上的二维码</string>
     <string name="lan_export_torch_on">手电筒</string>
     <string name="lan_export_torch_off">关灯</string>
@@ -317,43 +336,43 @@
     <string name="lan_export_manual_label">电脑地址</string>
     <string name="lan_export_manual_placeholder">192.168.2.110:47821#K4F9M2</string>
     <string name="lan_export_manual_submit">确定</string>
-    <string name="lan_export_manual_hint">口令写在 # 后面;同网段可只输短式,例如 110#K4F9M2。</string>
-    <string name="lan_export_qr_fallback">扫不到二维码?在电脑上加 --png /tmp/qr.png,打开那张图再扫。</string>
-    <string name="lan_export_camera_denied_title">相机权限没开</string>
-    <string name="lan_export_camera_denied_body">扫码需要相机权限;不开也可以手动输入。</string>
-    <string name="lan_export_grant_camera">授予相机权限</string>
+    <string name="lan_export_manual_hint">格式：地址#口令。同网段可只写 110#口令。</string>
+    <string name="lan_export_qr_fallback">扫不到？在电脑上用 --png 存图再扫。</string>
+    <string name="lan_export_camera_denied_title">没有相机权限</string>
+    <string name="lan_export_camera_denied_body">也可以手动输入。</string>
+    <string name="lan_export_grant_camera">授予权限</string>
     <string name="lan_export_open_settings">打开系统设置</string>
     <string name="lan_export_rescan">重新扫码</string>
     <string name="lan_export_unparsed_title">这个二维码用不了</string>
     <string name="lan_export_failed_title">发送失败</string>
-    <string name="lan_export_target">目标电脑:%1$s</string>
+    <string name="lan_export_target">目标：%1$s</string>
     <string name="lan_export_target_code">口令 %1$s</string>
-    <string name="lan_export_send_json">发送完整备份(JSON)</string>
-    <string name="lan_export_send_csv">发送服药记录(CSV)…</string>
+    <string name="lan_export_send_json">发送完整备份（JSON）</string>
+    <string name="lan_export_send_csv">发送服药记录（CSV）</string>
     <string name="lan_export_sending">正在发送到 %1$s…</string>
-    <string name="lan_export_kind_json">完整备份(JSON)</string>
-    <string name="lan_export_kind_csv">服药记录(CSV)</string>
+    <string name="lan_export_kind_json">完整备份（JSON）</string>
+    <string name="lan_export_kind_csv">服药记录（CSV）</string>
     <string name="lan_export_sent_title">已发送到 %1$s</string>
-    <string name="lan_export_sent_saved">电脑上保存到:%1$s</string>
-    <string name="lan_export_sent_verified">校验一致 · %1$s · sha256 %2$s</string>
+    <string name="lan_export_sent_saved">已存到：%1$s</string>
+    <string name="lan_export_sent_verified">校验一致（%1$s）</string>
     <string name="lan_export_retry">重试</string>
     <string name="lan_export_not_kusuri">这不是 Kusuri 导出的二维码。请扫电脑上脚本打印的那个码。</string>
-    <string name="lan_export_unsupported_version">这个二维码来自更新的版本,请先更新 Kusuri。</string>
-    <string name="lan_export_needs_local_address">短式地址需要手机的网络信息;请改输完整地址,例如 192.168.2.110:47821#K4F9M2。</string>
-    <string name="lan_export_invalid">地址格式不对。应该是 192.168.2.110:47821#口令(同网段可写短式 110#口令)。</string>
-    <string name="lan_export_error_refused">连不上 %1$s:电脑上没有在监听。确认脚本在运行,且防火墙放行 %2$d 端口。</string>
-    <string name="lan_export_error_no_route">连不上 %1$s:手机和电脑不在同一个网络。</string>
+    <string name="lan_export_unsupported_version">二维码来自更新的版本，请先更新 Kusuri。</string>
+    <string name="lan_export_needs_local_address">请改输完整地址：192.168.2.110:47821#口令</string>
+    <string name="lan_export_invalid">格式不对，应为 192.168.2.110:47821#口令</string>
+    <string name="lan_export_error_refused">连不上 %1$s。确认脚本在运行、防火墙放行 %2$d。</string>
+    <string name="lan_export_error_no_route">连不上 %1$s。两端不在同一网络。</string>
     <string name="lan_export_error_unknown_host">地址不合法。</string>
-    <string name="lan_export_error_dropped">连接中途断了(发送被打断或 Wi-Fi 掉线)。</string>
-    <string name="lan_export_error_other">连不上 %1$s:%2$s</string>
-    <string name="lan_export_error_timeout_connect">连接超时。确认电脑地址,并让两端连同一个 Wi-Fi。</string>
-    <string name="lan_export_error_timeout_read">电脑没有响应。</string>
-    <string name="lan_export_error_bad_code">口令不匹配。脚本重启会换口令,请重新扫码。</string>
-    <string name="lan_export_error_too_large">文件太大,超过 32MB。</string>
-    <string name="lan_export_error_rejected">电脑拒收了这次发送(%1$d %2$s)。</string>
-    <string name="lan_export_error_bad_response">电脑的应答看不懂:对面可能不是 Kusuri 的接收脚本。</string>
-    <string name="lan_export_error_integrity">电脑上落盘的内容与发送的不一致,请重新发送。</string>
-    <string name="lan_export_error_local">本地导出失败:%1$s</string>
+    <string name="lan_export_error_dropped">连接中断（发送被打断或 Wi-Fi 掉线）</string>
+    <string name="lan_export_error_other">连不上 %1$s：%2$s</string>
+    <string name="lan_export_error_timeout_connect">连接超时。确认地址与 Wi-Fi。</string>
+    <string name="lan_export_error_timeout_read">电脑没响应</string>
+    <string name="lan_export_error_bad_code">口令不符。脚本重启会换口令，请重新扫码。</string>
+    <string name="lan_export_error_too_large">超过 32MB 上限</string>
+    <string name="lan_export_error_rejected">电脑拒收（%1$d %2$s）</string>
+    <string name="lan_export_error_bad_response">应答看不懂。对面可能不是接收脚本。</string>
+    <string name="lan_export_error_integrity">落盘内容与发送的不一致，请重发。</string>
+    <string name="lan_export_error_local">本地导出失败：%1$s</string>
 
     <!-- 无障碍描述 -->
     <string name="cd_add_medication">添加药物</string>

@@ -433,11 +433,12 @@ private fun SentPanel(
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
-            text = stringResource(
-                R.string.lan_export_sent_verified,
-                formatBytes(phase.bytes),
-                phase.sha256,
-            ),
+            text = stringResource(R.string.lan_export_sent_verified, formatBytes(phase.bytes)),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(R.string.lan_export_sent_sha, phase.sha256),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

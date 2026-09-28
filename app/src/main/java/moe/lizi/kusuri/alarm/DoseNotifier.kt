@@ -16,6 +16,7 @@ import moe.lizi.kusuri.domain.LowStockAlertControl
 import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
+import moe.lizi.kusuri.domain.model.ReminderLevel
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
 
@@ -32,62 +33,91 @@ class DoseNotifier(
     fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        // 提醒分静音/响铃两个渠道:渠道重要性创建后不可改,因此按设置选择渠道。
-        if (manager.getNotificationChannel(SILENT_CHANNEL_ID) == null) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    SILENT_CHANNEL_ID,
-                    context.getString(R.string.channel_dose_reminders_silent_name),
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = context.getString(R.string.channel_dose_reminders_silent_description)
-                    enableVibration(false)
-                    setSound(null, null)
-                },
-            )
+        // 渠道的重要性创建后不可改(平台约束),所以一个等级一条渠道,发送时按设置选一条。
+        // 静默与只震动同为 IMPORTANCE_LOW,区别只在震动开关。
+        createChannel(
+            manager,
+            SILENT_CHANNEL_ID,
+            R.string.channel_dose_silent_name,
+            R.string.channel_dose_silent_description,
+            NotificationManager.IMPORTANCE_LOW,
+        ) {
+            enableVibration(false)
+            setSound(null, null)
         }
-        if (manager.getNotificationChannel(ALERT_CHANNEL_ID) == null) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    ALERT_CHANNEL_ID,
-                    context.getString(R.string.channel_dose_reminders_alert_name),
-                    NotificationManager.IMPORTANCE_HIGH,
-                ).apply {
-                    description = context.getString(R.string.channel_dose_reminders_alert_description)
-                    enableVibration(true)
-                },
-            )
+        createChannel(
+            manager,
+            VIBRATE_CHANNEL_ID,
+            R.string.channel_dose_vibrate_name,
+            R.string.channel_dose_vibrate_description,
+            NotificationManager.IMPORTANCE_LOW,
+        ) {
+            enableVibration(true)
+            setSound(null, null)
         }
-        if (manager.getNotificationChannel(STOCK_CHANNEL_ID) == null) {
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    STOCK_CHANNEL_ID,
-                    context.getString(R.string.channel_stock_alerts_name),
-                    NotificationManager.IMPORTANCE_DEFAULT,
-                ).apply {
-                    description = context.getString(R.string.channel_stock_alerts_description)
-                },
-            )
+        createChannel(
+            manager,
+            SOUND_CHANNEL_ID,
+            R.string.channel_dose_sound_name,
+            R.string.channel_dose_sound_description,
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ) {
+            enableVibration(true)
         }
+        createChannel(
+            manager,
+            BANNER_CHANNEL_ID,
+            R.string.channel_dose_banner_name,
+            R.string.channel_dose_banner_description,
+            NotificationManager.IMPORTANCE_HIGH,
+        ) {
+            enableVibration(true)
+        }
+        createChannel(
+            manager,
+            STOCK_CHANNEL_ID,
+            R.string.channel_stock_alerts_name,
+            R.string.channel_stock_alerts_description,
+            NotificationManager.IMPORTANCE_DEFAULT,
+        )
+        // 旧版那条"用药提醒(响铃)"已被四档取代:留着只会让系统设置里多一条永不触发的渠道。
+        manager.deleteNotificationChannel(LEGACY_ALERT_CHANNEL_ID)
+    }
+
+    private fun createChannel(
+        manager: NotificationManager,
+        id: String,
+        nameRes: Int,
+        descriptionRes: Int,
+        importance: Int,
+        configure: NotificationChannel.() -> Unit = {},
+    ) {
+        if (manager.getNotificationChannel(id) != null) return
+        manager.createNotificationChannel(
+            NotificationChannel(id, context.getString(nameRes), importance).apply {
+                description = context.getString(descriptionRes)
+                configure()
+            },
+        )
     }
 
     fun notify(medication: Medication, scheduledAt: Instant, now: Instant) {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
 
+        val level = settings.reminderLevel.value
         val scheduledMillis = scheduledAt.toEpochMilli()
         val time = formatTime(scheduledAt.atZone(ZoneId.systemDefault()).toLocalTime())
-        val channelId = if (settings.reminderSoundEnabled.value) ALERT_CHANNEL_ID else SILENT_CHANNEL_ID
 
-        val notification = NotificationCompat.Builder(context, channelId)
+        val notification = NotificationCompat.Builder(context, channelIdFor(level))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_title, medication.name))
             .setContentText(notificationText(medication, time))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setSilent(!settings.reminderSoundEnabled.value)
+            .setSilent(level.isSilent)
+            .apply { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) applyLegacyLevel(level) }
             .setContentIntent(contentIntent(doseNotificationId(medication.id)))
             .addAction(
                 R.drawable.ic_notification,
@@ -108,6 +138,33 @@ class DoseNotifier(
             .build()
 
         manager.notify(doseNotificationId(medication.id), notification)
+    }
+
+    /** Android 8 以下没有渠道:等级只能落在通知自身的 priority 与声音/震动上。 */
+    private fun NotificationCompat.Builder.applyLegacyLevel(level: ReminderLevel) {
+        when (level) {
+            ReminderLevel.SILENT -> {
+                setPriority(NotificationCompat.PRIORITY_LOW)
+                setSound(null)
+                setVibrate(longArrayOf(0L))
+            }
+
+            ReminderLevel.VIBRATE -> {
+                setPriority(NotificationCompat.PRIORITY_LOW)
+                setSound(null)
+                setVibrate(VIBRATION_PATTERN)
+            }
+
+            ReminderLevel.SOUND -> {
+                setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                setVibrate(VIBRATION_PATTERN)
+            }
+
+            ReminderLevel.BANNER -> {
+                setPriority(NotificationCompat.PRIORITY_HIGH)
+                setVibrate(VIBRATION_PATTERN)
+            }
+        }
     }
 
     fun cancel(medicationId: Long) {
@@ -184,9 +241,24 @@ class DoseNotifier(
 
     companion object {
         const val SILENT_CHANNEL_ID = "dose_reminders_silent"
-        const val ALERT_CHANNEL_ID = "dose_reminders_alert"
+        const val VIBRATE_CHANNEL_ID = "dose_reminders_vibrate"
+        const val SOUND_CHANNEL_ID = "dose_reminders_sound"
+        const val BANNER_CHANNEL_ID = "dose_reminders_banner"
         const val STOCK_CHANNEL_ID = "stock_alerts"
+
+        /** 旧版的"响铃"渠道;已被四档取代,只在 [ensureChannel] 里删掉。 */
+        private const val LEGACY_ALERT_CHANNEL_ID = "dose_reminders_alert"
+
+        private val VIBRATION_PATTERN = longArrayOf(0L, 300L, 200L, 300L)
         private const val MIN_TIMEOUT_MILLIS = 60_000L
+
+        /** 等级 → 渠道(docs/plan.md §4.1);渠道与等级一一对应,不做动态切换。 */
+        fun channelIdFor(level: ReminderLevel): String = when (level) {
+            ReminderLevel.SILENT -> SILENT_CHANNEL_ID
+            ReminderLevel.VIBRATE -> VIBRATE_CHANNEL_ID
+            ReminderLevel.SOUND -> SOUND_CHANNEL_ID
+            ReminderLevel.BANNER -> BANNER_CHANNEL_ID
+        }
 
         fun doseNotificationId(medicationId: Long): Int = medicationId.hashCode()
 

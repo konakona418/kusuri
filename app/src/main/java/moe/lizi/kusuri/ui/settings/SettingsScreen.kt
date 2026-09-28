@@ -21,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -47,8 +45,10 @@ import moe.lizi.kusuri.ui.components.CsvRangeDialog
 import moe.lizi.kusuri.ui.components.OnboardingDialog
 import moe.lizi.kusuri.ui.components.backupCsvLabels
 import moe.lizi.kusuri.ui.components.ReliabilityRow
+import moe.lizi.kusuri.ui.components.ReminderLevelDialog
 import moe.lizi.kusuri.ui.components.SettingRow
 import moe.lizi.kusuri.ui.components.LongPressDeleteLabel
+import moe.lizi.kusuri.ui.components.reminderLevelLabel
 import moe.lizi.kusuri.ui.components.rememberReliabilityState
 
 @Composable
@@ -59,10 +59,11 @@ fun SettingsScreen(
     val context = LocalContext.current
     val reliability = rememberReliabilityState()
     val gracePeriodHours by viewModel.gracePeriodHours.collectAsStateWithLifecycle()
-    val reminderSoundEnabled by viewModel.reminderSoundEnabled.collectAsStateWithLifecycle()
+    val reminderLevel by viewModel.reminderLevel.collectAsStateWithLifecycle()
     val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
 
     var showGraceDialog by remember { mutableStateOf(false) }
+    var showReminderLevelDialog by remember { mutableStateOf(false) }
     var showCsvRangeDialog by remember { mutableStateOf(false) }
     var pendingCsvRange by remember { mutableStateOf<CsvRange?>(null) }
     var showWizard by remember { mutableStateOf(false) }
@@ -135,11 +136,11 @@ fun SettingsScreen(
         }
 
         SectionTitle(stringResource(R.string.settings_section_general))
-        SwitchRow(
-            label = stringResource(R.string.settings_reminder_sound),
-            description = stringResource(R.string.settings_reminder_sound_description),
-            checked = reminderSoundEnabled,
-            onCheckedChange = { viewModel.setReminderSoundEnabled(it) },
+        SettingRow(
+            label = stringResource(R.string.settings_reminder_level),
+            value = reminderLevelLabel(reminderLevel),
+            onClick = { showReminderLevelDialog = true },
+            contentPadding = PaddingValues(vertical = 14.dp),
         )
         SettingRow(
             label = stringResource(R.string.settings_grace_period),
@@ -218,6 +219,14 @@ fun SettingsScreen(
                 viewModel.setGracePeriodHours(hours)
                 showGraceDialog = false
             },
+        )
+    }
+
+    if (showReminderLevelDialog) {
+        ReminderLevelDialog(
+            current = reminderLevel,
+            onSelect = viewModel::setReminderLevel,
+            onDismiss = { showReminderLevelDialog = false },
         )
     }
 
@@ -326,32 +335,6 @@ private fun GracePeriodDialog(
             }
         },
     )
-}
-
-@Composable
-private fun SwitchRow(
-    label: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
 }
 
 @Composable

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import moe.lizi.kusuri.domain.model.DOSE_GRACE_PERIOD
+import moe.lizi.kusuri.domain.model.ReminderLevel
 
 /** 应用设置的本地存储(SharedPreferences);宽限窗口与首次向导状态需要被界面实时观察。 */
 class SettingsRepository(context: Context) {
@@ -20,8 +21,8 @@ class SettingsRepository(context: Context) {
     private val _onboardingDone = MutableStateFlow(prefs.getBoolean(KEY_ONBOARDING_DONE, false))
     val onboardingDone: StateFlow<Boolean> = _onboardingDone.asStateFlow()
 
-    private val _reminderSoundEnabled = MutableStateFlow(prefs.getBoolean(KEY_REMINDER_SOUND, true))
-    val reminderSoundEnabled: StateFlow<Boolean> = _reminderSoundEnabled.asStateFlow()
+    private val _reminderLevel = MutableStateFlow(readReminderLevel())
+    val reminderLevel: StateFlow<ReminderLevel> = _reminderLevel.asStateFlow()
 
     fun setGracePeriodHours(hours: Int) {
         val clamped = hours.coerceIn(MIN_GRACE_HOURS, MAX_GRACE_HOURS)
@@ -34,16 +35,37 @@ class SettingsRepository(context: Context) {
         _onboardingDone.value = done
     }
 
-    /** 提醒声音与震动:默认开启(普通通知音量,非闹钟式),可一键切回静音(docs/plan.md §4.1)。 */
-    fun setReminderSoundEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_REMINDER_SOUND, enabled).apply()
-        _reminderSoundEnabled.value = enabled
+    /** 提醒等级:静默 / 只震动 / 响亮 / 横幅(docs/plan.md §4.1)。 */
+    fun setReminderLevel(level: ReminderLevel) {
+        prefs.edit().putString(KEY_REMINDER_LEVEL, level.name).apply()
+        _reminderLevel.value = level
+    }
+
+    /** 旧版只有一个"提醒声音与震动"开关:开→响亮,关→静默。 */
+    private fun readReminderLevel(): ReminderLevel {
+        ReminderLevel.fromName(prefs.getString(KEY_REMINDER_LEVEL, null))?.let { return it }
+        if (prefs.contains(KEY_REMINDER_SOUND)) {
+            val migrated = if (prefs.getBoolean(KEY_REMINDER_SOUND, true)) {
+                ReminderLevel.DEFAULT
+            } else {
+                ReminderLevel.SILENT
+            }
+            prefs.edit()
+                .putString(KEY_REMINDER_LEVEL, migrated.name)
+                .remove(KEY_REMINDER_SOUND)
+                .apply()
+            return migrated
+        }
+        return ReminderLevel.DEFAULT
     }
 
     companion object {
         private const val PREFS_NAME = "kusuri_settings"
         private const val KEY_GRACE_HOURS = "grace_period_hours"
         private const val KEY_ONBOARDING_DONE = "onboarding_done"
+        private const val KEY_REMINDER_LEVEL = "reminder_level"
+
+        /** 旧版开关(V2 起由 [KEY_REMINDER_LEVEL] 取代,只在迁移时读一次)。 */
         private const val KEY_REMINDER_SOUND = "reminder_sound"
 
         val DEFAULT_GRACE_HOURS: Int = DOSE_GRACE_PERIOD.toHours().toInt()

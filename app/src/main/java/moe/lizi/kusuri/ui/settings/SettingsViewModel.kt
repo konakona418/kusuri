@@ -14,6 +14,7 @@ import moe.lizi.kusuri.data.backup.CsvRange
 import moe.lizi.kusuri.data.backup.CsvLabels
 import moe.lizi.kusuri.data.backup.window
 import moe.lizi.kusuri.domain.WipeAllDataUseCase
+import moe.lizi.kusuri.domain.model.ReminderLevel
 
 sealed interface BackupStatus {
     data object CsvExported : BackupStatus
@@ -32,14 +33,14 @@ class SettingsViewModel(
 
     val gracePeriodHours: StateFlow<Int> = settings.gracePeriodHours
     val onboardingDone: StateFlow<Boolean> = settings.onboardingDone
-    val reminderSoundEnabled: StateFlow<Boolean> = settings.reminderSoundEnabled
+    val reminderLevel: StateFlow<ReminderLevel> = settings.reminderLevel
 
     private val _backupStatus = MutableStateFlow<BackupStatus?>(null)
     val backupStatus: StateFlow<BackupStatus?> = _backupStatus.asStateFlow()
 
     fun setGracePeriodHours(hours: Int) = settings.setGracePeriodHours(hours)
 
-    fun setReminderSoundEnabled(enabled: Boolean) = settings.setReminderSoundEnabled(enabled)
+    fun setReminderLevel(level: ReminderLevel) = settings.setReminderLevel(level)
 
     fun completeOnboarding() = settings.setOnboardingDone(true)
 
