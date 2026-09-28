@@ -40,6 +40,12 @@ class MedicationDetailViewModel(
         }
     }
 
+    fun unarchive() {
+        viewModelScope.launch {
+            repository.setStatus(medicationId, MedicationStatus.ACTIVE)
+        }
+    }
+
     fun delete() {
         viewModelScope.launch {
             repository.delete(medicationId)

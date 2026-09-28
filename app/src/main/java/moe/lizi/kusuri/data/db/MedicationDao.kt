@@ -35,19 +35,14 @@ interface MedicationDao {
         """
         SELECT m.*, $REMAINING_STOCK AS remainingStock
         FROM medications m
-        WHERE m.status != :archivedStatus
         ORDER BY m.createdAt DESC
         """,
     )
-    fun observeVisible(archivedStatus: String): Flow<List<MedicationRow>>
+    fun observeAll(): Flow<List<MedicationRow>>
 
     @Transaction
     @Query("SELECT m.*, $REMAINING_STOCK AS remainingStock FROM medications m WHERE m.id = :id")
     fun observeById(id: Long): Flow<MedicationRow?>
-
-    @Transaction
-    @Query("SELECT m.*, $REMAINING_STOCK AS remainingStock FROM medications m WHERE m.id = :id")
-    suspend fun getById(id: Long): MedicationRow?
 
     @Insert
     suspend fun insertMedication(medication: MedicationEntity): Long

@@ -76,6 +76,13 @@ fun MedicationEditScreen(
     val errors by viewModel.errors.collectAsStateWithLifecycle()
     val saved by viewModel.saved.collectAsStateWithLifecycle()
 
+    val defaultUnit = stringResource(R.string.form_unit_default)
+    LaunchedEffect(viewModel.isNew) {
+        if (viewModel.isNew) {
+            viewModel.update { state -> if (state.unit.isBlank()) state.copy(unit = defaultUnit) else state }
+        }
+    }
+
     LaunchedEffect(saved) {
         if (saved) onSaved()
     }

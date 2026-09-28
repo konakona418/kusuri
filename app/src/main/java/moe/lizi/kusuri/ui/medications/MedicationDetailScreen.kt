@@ -152,8 +152,14 @@ fun MedicationDetailScreen(
             FilledTonalButton(onClick = onEdit) {
                 Text(stringResource(R.string.action_edit))
             }
-            OutlinedButton(onClick = viewModel::archive) {
-                Text(stringResource(R.string.action_archive))
+            if (current.status == MedicationStatus.ARCHIVED) {
+                OutlinedButton(onClick = viewModel::unarchive) {
+                    Text(stringResource(R.string.action_unarchive))
+                }
+            } else {
+                OutlinedButton(onClick = viewModel::archive) {
+                    Text(stringResource(R.string.action_archive))
+                }
             }
             OutlinedButton(
                 onClick = { showDeleteDialog = true },

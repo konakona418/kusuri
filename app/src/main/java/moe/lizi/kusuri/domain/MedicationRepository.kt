@@ -7,7 +7,7 @@ import moe.lizi.kusuri.domain.model.StockEventType
 
 interface MedicationRepository {
 
-    /** 未归档的药物(含已完成),按创建时间倒序。 */
+    /** 全部药物(含已完成与已归档),按创建时间倒序。 */
     fun observeMedications(): Flow<List<Medication>>
 
     fun observeMedication(id: Long): Flow<Medication?>

@@ -22,7 +22,7 @@ class RoomMedicationRepository(
     private val dao = db.medicationDao()
 
     override fun observeMedications(): Flow<List<Medication>> =
-        dao.observeVisible(MedicationStatus.ARCHIVED.name)
+        dao.observeAll()
             .map { rows -> rows.map { it.toDomain() } }
 
     override fun observeMedication(id: Long): Flow<Medication?> =

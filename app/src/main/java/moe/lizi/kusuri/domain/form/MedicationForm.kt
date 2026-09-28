@@ -31,7 +31,7 @@ enum class FormError {
 /** 表单原始输入(全部为字符串/领域枚举),由 UI 持有;校验与转换是纯函数。 */
 data class MedicationFormState(
     val name: String = "",
-    val unit: String = "粒",
+    val unit: String = "",
     val doseText: String = "1",
     val mealTag: MealTag = MealTag.NONE,
     val notes: String = "",
@@ -108,7 +108,8 @@ fun MedicationFormState.validate(): MedicationFormErrors {
 /**
  * 仅在 [validate] 通过后调用。表单即事实:编辑时 [existing] 只提供不被表单编辑的身份字段
  * (id、创建时间、状态、库存告警武装标志),其余全部来自表单。
- */fun MedicationFormState.toMedication(existing: Medication?, clock: Clock): Medication {
+ */
+fun MedicationFormState.toMedication(existing: Medication?, clock: Clock): Medication {
     val schedule = when (mode) {
         ScheduleMode.DAILY_TIMES -> Schedule.DailyTimes(dailyTimes.distinct().sorted())
         ScheduleMode.INTERVAL -> Schedule.Interval(

@@ -20,7 +20,7 @@ class MedicationFormValidationTest {
     private val clock = Clock.fixed(Instant.parse("2026-09-28T02:00:00Z"), ZoneId.of("Asia/Shanghai"))
     private val today = LocalDate.of(2026, 9, 28)
 
-    private fun form() = MedicationFormState.create(today)
+    private fun form() = MedicationFormState.create(today).copy(unit = "粒")
 
     @Test
     fun `valid minimal daily form produces medication`() {

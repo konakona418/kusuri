@@ -127,12 +127,14 @@ class RoomMedicationRepositoryTest {
     }
 
     @Test
-    fun `archived medications disappear from list but stay observable by id`() = runTest {
+    fun `archived medications stay in the full list`() = runTest {
         val id = repository.save(medication())
 
         repository.setStatus(id, MedicationStatus.ARCHIVED)
 
-        assertTrue(repository.observeMedications().first().isEmpty())
+        val all = repository.observeMedications().first()
+        assertEquals(1, all.size)
+        assertEquals(MedicationStatus.ARCHIVED, all.single().status)
         assertEquals(MedicationStatus.ARCHIVED, repository.observeMedication(id).first()!!.status)
     }
 

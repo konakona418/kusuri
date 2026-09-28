@@ -1,5 +1,6 @@
 package moe.lizi.kusuri.ui.medications
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -22,6 +25,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -44,7 +50,9 @@ fun MedicationListScreen(
 ) {
     val medications by viewModel.medications.collectAsStateWithLifecycle()
     val active = medications.filter { it.status == MedicationStatus.ACTIVE }
-    val completed = medications.filter { it.status != MedicationStatus.ACTIVE }
+    val completed = medications.filter { it.status == MedicationStatus.COMPLETED }
+    val archived = medications.filter { it.status == MedicationStatus.ARCHIVED }
+    var showArchived by rememberSaveable { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (medications.isEmpty()) {
@@ -63,18 +71,48 @@ fun MedicationListScreen(
                 }
                 if (completed.isNotEmpty()) {
                     item {
-                        Text(
-                            text = stringResource(R.string.medications_completed_section),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 16.dp),
-                        )
+                        SectionHeader(text = stringResource(R.string.medications_completed_section))
                     }
                     items(completed, key = { it.id }) { medication ->
                         MedicationCard(
                             medication = medication,
                             onClick = { onOpen(medication.id) },
                         )
+                    }
+                }
+                if (archived.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showArchived = !showArchived }
+                                .padding(top = 16.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.medications_archived_section, archived.size),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Icon(
+                                imageVector = if (showArchived) {
+                                    Icons.Filled.KeyboardArrowUp
+                                } else {
+                                    Icons.Filled.KeyboardArrowDown
+                                },
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (showArchived) {
+                        items(archived, key = { it.id }) { medication ->
+                            MedicationCard(
+                                medication = medication,
+                                onClick = { onOpen(medication.id) },
+                            )
+                        }
                     }
                 }
             }
@@ -87,6 +125,16 @@ fun MedicationListScreen(
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_medication))
         }
     }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 16.dp),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,8 +155,10 @@ private fun MedicationCard(medication: Medication, onClick: () -> Unit) {
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 mealTagLabel(medication.mealTag)?.let { TagChip(it) }
-                if (medication.status == MedicationStatus.COMPLETED) {
-                    TagChip(stringResource(R.string.medication_status_completed))
+                when (medication.status) {
+                    MedicationStatus.ACTIVE -> Unit
+                    MedicationStatus.COMPLETED -> TagChip(stringResource(R.string.medication_status_completed))
+                    MedicationStatus.ARCHIVED -> TagChip(stringResource(R.string.medication_status_archived))
                 }
             }
             Text(
@@ -134,7 +184,7 @@ private fun MedicationCard(medication: Medication, onClick: () -> Unit) {
 
 @Composable
 private fun StockLine(medication: Medication) {
-    val low = medication.remainingStock > 0 && medication.remainingStock <= medication.lowStockThreshold
+    val low = medication.remainingStock <= medication.lowStockThreshold
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,

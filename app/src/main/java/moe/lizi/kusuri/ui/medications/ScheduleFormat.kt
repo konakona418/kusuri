@@ -21,7 +21,7 @@ fun formatDate(date: LocalDate): String = date.format(DATE_FORMATTER)
 fun scheduleSummary(schedule: Schedule): String = when (schedule) {
     is Schedule.DailyTimes -> stringResource(
         R.string.schedule_daily_times,
-        schedule.times.joinToString("、", transform = ::formatTime),
+        schedule.times.joinToString(stringResource(R.string.list_separator), transform = ::formatTime),
     )
 
     is Schedule.Interval ->
