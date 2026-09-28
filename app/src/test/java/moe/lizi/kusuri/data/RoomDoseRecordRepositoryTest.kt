@@ -80,7 +80,7 @@ class RoomDoseRecordRepositoryTest {
         )
 
         val record = repository
-            .observeScheduledBetween(scheduledAt.minusSeconds(60), scheduledAt.plusSeconds(60))
+            .observeRecordsBetween(scheduledAt.minusSeconds(60), scheduledAt.plusSeconds(60))
             .first()
             .single()
 
@@ -98,7 +98,7 @@ class RoomDoseRecordRepositoryTest {
         repository.record(1L, scheduledAt, 1.0, DoseAction.TAKEN, DoseSource.NOTIFICATION)
 
         val records = repository
-            .observeScheduledBetween(scheduledAt.plusSeconds(1), scheduledAt.plusSeconds(3600))
+            .observeRecordsBetween(scheduledAt.plusSeconds(1), scheduledAt.plusSeconds(3600))
             .first()
 
         assertTrue(records.isEmpty())
@@ -111,6 +111,18 @@ class RoomDoseRecordRepositoryTest {
 
         assertEquals(DoseAction.SKIPPED, repository.findByScheduled(1L, scheduledAt)!!.action)
         assertNull(repository.findByScheduled(2L, scheduledAt))
+    }
+
+    @Test
+    fun `last taken ignores skips and older records`() = runTest {
+        insertMedication()
+        val earlier = scheduledAt
+        val later = scheduledAt.plusSeconds(3600)
+        repository.record(1L, earlier, 1.0, DoseAction.TAKEN, DoseSource.IN_APP, actualAt = earlier)
+        repository.record(1L, later, 1.0, DoseAction.SKIPPED, DoseSource.IN_APP, actualAt = later)
+
+        assertEquals(earlier, repository.lastTaken(1L)!!.actualAt)
+        assertNull(repository.lastTaken(99L))
     }
 
     @Test
@@ -131,7 +143,7 @@ class RoomDoseRecordRepositoryTest {
         repository.record(1L, scheduledAt, 1.0, DoseAction.SKIPPED, DoseSource.NOTIFICATION)
 
         val records = repository
-            .observeScheduledBetween(scheduledAt.minusSeconds(1), scheduledAt.plusSeconds(1))
+            .observeRecordsBetween(scheduledAt.minusSeconds(1), scheduledAt.plusSeconds(1))
             .first()
         assertEquals(1, records.size)
         assertEquals(DoseAction.TAKEN, records.single().action)

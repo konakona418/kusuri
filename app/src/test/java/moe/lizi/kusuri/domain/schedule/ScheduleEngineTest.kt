@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import moe.lizi.kusuri.domain.model.IntervalUnit
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -126,5 +127,75 @@ class ScheduleEngineTest {
             LocalDateTime.of(2026, 3, 29, 3, 30).atZone(berlin).toInstant(),
             doses.single(),
         )
+    }
+
+    // ---- 间隔制(固定锚点) ----
+
+    private fun intervalMedication(
+        every: Int,
+        unit: IntervalUnit,
+        anchor: LocalDateTime,
+        courseStart: LocalDate = LocalDate.of(2026, 9, 1),
+        courseEnd: LocalDate? = null,
+    ) = medication(courseStart = courseStart, courseEnd = courseEnd).copy(
+        schedule = Schedule.Interval(every = every, unit = unit, anchor = anchor),
+    )
+
+    @Test
+    fun `interval hours expand around the anchor on a local day`() {
+        // 锚点 9/28 08:00,每 8 小时 → 9/28: 00:00、08:00、16:00
+        val medication = intervalMedication(8, IntervalUnit.HOURS, LocalDateTime.of(2026, 9, 28, 8, 0))
+
+        val doses = engine.plannedDosesOn(medication, LocalDate.of(2026, 9, 28))
+
+        assertEquals(
+            listOf(
+                LocalDateTime.of(2026, 9, 28, 0, 0).atZone(zone).toInstant(),
+                LocalDateTime.of(2026, 9, 28, 8, 0).atZone(zone).toInstant(),
+                LocalDateTime.of(2026, 9, 28, 16, 0).atZone(zone).toInstant(),
+            ),
+            doses,
+        )
+    }
+
+    @Test
+    fun `interval days fire on the anchor cadence at the anchor time`() {
+        val medication = intervalMedication(2, IntervalUnit.DAYS, LocalDateTime.of(2026, 9, 1, 9, 30))
+
+        assertTrue(engine.plannedDosesOn(medication, LocalDate.of(2026, 9, 2)).isEmpty())
+        assertEquals(
+            listOf(LocalDateTime.of(2026, 9, 3, 9, 30).atZone(zone).toInstant()),
+            engine.plannedDosesOn(medication, LocalDate.of(2026, 9, 3)),
+        )
+    }
+
+    @Test
+    fun `next interval dose rolls forward from the anchor`() {
+        val medication = intervalMedication(8, IntervalUnit.HOURS, LocalDateTime.of(2026, 9, 28, 8, 0))
+
+        assertEquals(
+            LocalDateTime.of(2026, 9, 28, 16, 0).atZone(zone).toInstant(),
+            engine.nextDoseAfter(medication, Instant.parse("2026-09-28T02:00:00Z")), // 10:00 本地
+        )
+        assertEquals(
+            LocalDateTime.of(2026, 9, 29, 0, 0).atZone(zone).toInstant(),
+            engine.nextDoseAfter(medication, Instant.parse("2026-09-28T08:30:00Z")), // 16:30 本地
+        )
+    }
+
+    @Test
+    fun `next interval dose respects the course end`() {
+        val medication = intervalMedication(
+            every = 2,
+            unit = IntervalUnit.DAYS,
+            anchor = LocalDateTime.of(2026, 9, 1, 9, 30),
+            courseEnd = LocalDate.of(2026, 9, 3),
+        )
+
+        assertEquals(
+            LocalDateTime.of(2026, 9, 3, 9, 30).atZone(zone).toInstant(),
+            engine.nextDoseAfter(medication, Instant.parse("2026-09-02T02:00:00Z")),
+        )
+        assertNull(engine.nextDoseAfter(medication, Instant.parse("2026-09-03T02:00:00Z")))
     }
 }

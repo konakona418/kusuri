@@ -14,6 +14,7 @@ class RecordDoseUseCase(
     private val medicationRepository: MedicationRepository,
     private val doseRecordRepository: DoseRecordRepository,
     private val reminderControl: DoseReminderControl,
+    private val checkLowStock: CheckLowStockUseCase,
 ) {
 
     /** 返回是否真正新写入了一条记录。 */
@@ -28,6 +29,21 @@ class RecordDoseUseCase(
     /** 补记:为过去的计划剂量补一条"已服用",实际时间由用户指定。 */
     suspend fun backfill(medicationId: Long, scheduledAt: Instant, actualAt: Instant): Boolean =
         recordInternal(medicationId, scheduledAt, DoseAction.TAKEN, DoseSource.BACKFILL, actualAt)
+
+    /** 按需(PRN)记录:没有计划时间,数量由用户给定。 */
+    suspend fun recordPrn(medicationId: Long, amount: Double, actualAt: Instant): Boolean {
+        medicationRepository.observeMedication(medicationId).first() ?: return false
+        doseRecordRepository.record(
+            medicationId = medicationId,
+            scheduledAt = null,
+            amount = amount,
+            action = DoseAction.TAKEN,
+            source = DoseSource.IN_APP,
+            actualAt = actualAt,
+        )
+        checkLowStock.check(medicationId)
+        return true
+    }
 
     private suspend fun recordInternal(
         medicationId: Long,
@@ -49,6 +65,7 @@ class RecordDoseUseCase(
             )
         }
         reminderControl.cancelDose(medicationId)
+        checkLowStock.check(medicationId)
         return !alreadyRecorded
     }
 }

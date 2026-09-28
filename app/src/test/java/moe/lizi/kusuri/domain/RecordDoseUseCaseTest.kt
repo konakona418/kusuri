@@ -16,6 +16,7 @@ import moe.lizi.kusuri.domain.model.Schedule
 import moe.lizi.kusuri.domain.model.StockEventType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -39,11 +40,23 @@ class RecordDoseUseCaseTest {
         remainingStock = 0.0,
     )
 
+    private fun useCase(
+        records: FakeDoseRecordRepository = FakeDoseRecordRepository(),
+        reminderControl: FakeReminderControl = FakeReminderControl(),
+        lowStockControl: FakeLowStockControl = FakeLowStockControl(),
+        medicationRepository: FakeMedicationRepository = FakeMedicationRepository(medication),
+    ) = RecordDoseUseCase(
+        medicationRepository = medicationRepository,
+        doseRecordRepository = records,
+        reminderControl = reminderControl,
+        checkLowStock = CheckLowStockUseCase(medicationRepository, lowStockControl),
+    )
+
     @Test
     fun `records once and always cancels the reminder`() = runTest {
         val records = FakeDoseRecordRepository()
         val control = FakeReminderControl()
-        val useCase = RecordDoseUseCase(FakeMedicationRepository(medication), records, control)
+        val useCase = useCase(records = records, reminderControl = control)
 
         assertTrue(useCase.record(1L, scheduledAt, DoseAction.TAKEN, DoseSource.IN_APP))
         assertFalse(useCase.record(1L, scheduledAt, DoseAction.TAKEN, DoseSource.NOTIFICATION))
@@ -57,7 +70,7 @@ class RecordDoseUseCaseTest {
     fun `backfill records taken with explicit time and backfill source`() = runTest {
         val records = FakeDoseRecordRepository()
         val actualAt = Instant.parse("2026-09-28T06:00:00Z")
-        val useCase = RecordDoseUseCase(FakeMedicationRepository(medication), records, FakeReminderControl())
+        val useCase = useCase(records = records)
 
         assertTrue(useCase.backfill(1L, scheduledAt, actualAt))
 
@@ -68,9 +81,34 @@ class RecordDoseUseCaseTest {
     }
 
     @Test
+    fun `prn records have no planned time and use the given amount`() = runTest {
+        val records = FakeDoseRecordRepository()
+        val useCase = useCase(records = records)
+        val actualAt = Instant.parse("2026-09-28T06:00:00Z")
+
+        assertTrue(useCase.recordPrn(1L, amount = 2.0, actualAt = actualAt))
+
+        val record = records.records.single()
+        assertNull(record.scheduledAt)
+        assertEquals(2.0, record.amount, 0.0)
+        assertEquals(actualAt, record.actualAt)
+        assertEquals(DoseAction.TAKEN, record.action)
+    }
+
+    @Test
+    fun `recording a dose re-checks low stock`() = runTest {
+        val lowStockControl = FakeLowStockControl()
+        val useCase = useCase(lowStockControl = lowStockControl)
+
+        useCase.record(1L, scheduledAt, DoseAction.TAKEN, DoseSource.IN_APP)
+
+        assertEquals(listOf(medication), lowStockControl.notified)
+    }
+
+    @Test
     fun `unknown medication is ignored`() = runTest {
         val records = FakeDoseRecordRepository()
-        val useCase = RecordDoseUseCase(FakeMedicationRepository(null), records, FakeReminderControl())
+        val useCase = useCase(records = records, medicationRepository = FakeMedicationRepository(null))
 
         assertFalse(useCase.record(99L, scheduledAt, DoseAction.TAKEN, DoseSource.IN_APP))
         assertTrue(records.records.isEmpty())
@@ -85,16 +123,29 @@ private class FakeMedicationRepository(private val medication: Medication?) : Me
     override suspend fun setStatus(id: Long, status: MedicationStatus) = Unit
     override suspend fun delete(id: Long) = Unit
     override suspend fun addStock(id: Long, type: StockEventType, amount: Double) = Unit
+    override suspend fun setStockAlertArmed(id: Long, armed: Boolean) = Unit
 }
 
 private class FakeDoseRecordRepository : DoseRecordRepository {
     val records = mutableListOf<DoseRecord>()
 
-    override fun observeScheduledBetween(from: Instant, to: Instant): Flow<List<DoseRecord>> =
+    override fun observeRecordsBetween(from: Instant, to: Instant): Flow<List<DoseRecord>> =
         flowOf(records.toList())
 
     override suspend fun findByScheduled(medicationId: Long, scheduledAt: Instant): DoseRecord? =
         records.firstOrNull { it.medicationId == medicationId && it.scheduledAt == scheduledAt }
+
+    override suspend fun lastTaken(medicationId: Long): DoseRecord? =
+        records.filter { it.medicationId == medicationId && it.action == DoseAction.TAKEN }
+            .maxByOrNull { it.actualAt }
+
+    override suspend fun countTaken(medicationId: Long, from: Instant, to: Instant): Int =
+        records.count {
+            it.medicationId == medicationId &&
+                it.action == DoseAction.TAKEN &&
+                it.actualAt >= from &&
+                it.actualAt < to
+        }
 
     override suspend fun record(
         medicationId: Long,
@@ -129,5 +180,12 @@ private class FakeReminderControl : DoseReminderControl {
     val cancelled = mutableListOf<Long>()
     override fun cancelDose(medicationId: Long) {
         cancelled += medicationId
+    }
+}
+
+private class FakeLowStockControl : LowStockAlertControl {
+    val notified = mutableListOf<Medication>()
+    override fun notifyLowStock(medication: Medication) {
+        notified += medication
     }
 }

@@ -128,4 +128,39 @@ class HistoryTimelineTest {
         assertTrue(dose.status is DoseStatus.Taken)
         assertEquals(1, timeline.adherence30.taken)
     }
+
+    @Test
+    fun `prn records show at their actual time and stay out of adherence`() {
+        val prnMedication = medication().copy(
+            id = 2L,
+            name = "布洛芬",
+            schedule = Schedule.Prn(minIntervalMinutes = 360, maxPerDay = 4),
+        )
+        val actualAt = at(today, LocalTime.of(10, 30))
+        val prnRecord = DoseRecord(
+            id = 2L,
+            medicationId = 2L,
+            scheduledAt = null,
+            actualAt = actualAt,
+            amount = 1.0,
+            action = DoseAction.TAKEN,
+            source = DoseSource.IN_APP,
+        )
+
+        val timeline = buildHistoryTimeline(
+            medications = listOf(medication(), prnMedication),
+            records = listOf(prnRecord),
+            today = today,
+            now = now,
+            engine = engine,
+        )
+
+        val todayDoses = timeline.days.single { it.date == today }.doses
+        assertTrue(
+            todayDoses.any {
+                it.medication.id == 2L && it.scheduledAt == actualAt && it.status is DoseStatus.Taken
+            },
+        )
+        assertEquals(0, timeline.adherence7.taken) // PRN 不进入遵守率
+    }
 }

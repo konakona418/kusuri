@@ -19,12 +19,18 @@ class RoomDoseRecordRepository(
 
     private val dao = db.doseRecordDao()
 
-    override fun observeScheduledBetween(from: Instant, to: Instant): Flow<List<DoseRecord>> =
-        dao.observeScheduledBetween(from.toEpochMilli(), to.toEpochMilli())
+    override fun observeRecordsBetween(from: Instant, to: Instant): Flow<List<DoseRecord>> =
+        dao.observeBetween(from.toEpochMilli(), to.toEpochMilli())
             .map { rows -> rows.map { it.toDomain() } }
 
     override suspend fun findByScheduled(medicationId: Long, scheduledAt: Instant): DoseRecord? =
         dao.findScheduled(medicationId, scheduledAt.toEpochMilli())?.toDomain()
+
+    override suspend fun lastTaken(medicationId: Long): DoseRecord? =
+        dao.lastTaken(medicationId)?.toDomain()
+
+    override suspend fun countTaken(medicationId: Long, from: Instant, to: Instant): Int =
+        dao.countTakenBetween(medicationId, from.toEpochMilli(), to.toEpochMilli())
 
     override suspend fun record(
         medicationId: Long,

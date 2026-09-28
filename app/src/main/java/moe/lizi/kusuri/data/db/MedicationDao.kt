@@ -53,6 +53,9 @@ interface MedicationDao {
     @Query("UPDATE medications SET status = :status WHERE id = :id")
     suspend fun updateStatus(id: Long, status: String)
 
+    @Query("UPDATE medications SET stockAlertArmed = :armed WHERE id = :id")
+    suspend fun updateStockAlertArmed(id: Long, armed: Boolean)
+
     @Query("DELETE FROM medications WHERE id = :id")
     suspend fun deleteMedication(id: Long)
 

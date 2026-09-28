@@ -61,4 +61,8 @@ class RoomMedicationRepository(
             ),
         )
     }
+
+    override suspend fun setStockAlertArmed(id: Long, armed: Boolean) {
+        dao.updateStockAlertArmed(id, armed)
+    }
 }

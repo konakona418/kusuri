@@ -21,4 +21,7 @@ interface MedicationRepository {
 
     /** 追加一笔库存事件(初始/补货/调整),不改变药物本身。 */
     suspend fun addStock(id: Long, type: StockEventType, amount: Double)
+
+    /** 低库存告警的"武装"标志:提醒一次后解除,补货回到阈值以上后重新武装。 */
+    suspend fun setStockAlertArmed(id: Long, armed: Boolean)
 }

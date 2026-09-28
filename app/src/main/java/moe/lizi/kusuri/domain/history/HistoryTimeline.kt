@@ -84,7 +84,20 @@ fun buildHistoryTimeline(
     }
 
     records.forEach { record ->
-        val scheduledAt = record.scheduledAt ?: return@forEach
+        val scheduledAt = record.scheduledAt
+        if (scheduledAt == null) {
+            // 按需(PRN)记录:没有计划时间,按实际时间落在当天,始终视为已服用。
+            val medication = medicationsById[record.medicationId] ?: return@forEach
+            val recordDate = engine.dateOf(record.actualAt)
+            if (recordDate.isBefore(windowStart) || recordDate.isAfter(today)) return@forEach
+            dosesByDate.getOrPut(recordDate) { mutableListOf() } += HistoryDose(
+                medication = medication,
+                scheduledAt = record.actualAt,
+                record = record,
+                status = doseStatus(record, record.actualAt, now, gracePeriod),
+            )
+            return@forEach
+        }
         if ((record.medicationId to scheduledAt) in matchedKeys) return@forEach
         val medication = medicationsById[record.medicationId] ?: return@forEach
         val recordDate = engine.dateOf(scheduledAt)
@@ -101,11 +114,17 @@ fun buildHistoryTimeline(
         .sortedByDescending { it.key }
         .map { (day, doses) -> HistoryDay(date = day, doses = doses.sortedBy { it.scheduledAt }) }
 
+    // 遵守率只看计划剂量(含对不上计划的记录);按需记录不属于"应服而未服"。
+    val scheduledStatuses = days
+        .flatMap { it.doses }
+        .filter { it.record?.scheduledAt != null || it.record == null }
+        .map { it.status }
     val last7 = days
         .filter { !it.date.isBefore(today.minusDays(6)) }
         .flatMap { it.doses }
+        .filter { it.record?.scheduledAt != null || it.record == null }
         .map { it.status }
-    val last30 = days.flatMap { it.doses }.map { it.status }
+    val last30 = scheduledStatuses
 
     return HistoryTimeline(
         today = today,
