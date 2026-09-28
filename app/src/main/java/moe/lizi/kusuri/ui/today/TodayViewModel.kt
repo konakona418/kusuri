@@ -5,9 +5,10 @@ import androidx.lifecycle.viewModelScope
 import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -23,7 +24,10 @@ import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
+import moe.lizi.kusuri.domain.model.Schedule
 import moe.lizi.kusuri.domain.model.doseStatus
+import moe.lizi.kusuri.domain.prn.PrnSafety
+import moe.lizi.kusuri.domain.prn.prnSafety
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 import moe.lizi.kusuri.domain.util.clockTicks
 
@@ -31,6 +35,23 @@ data class TodayDoseItem(
     val medication: Medication,
     val scheduledAt: Instant,
     val status: DoseStatus,
+)
+
+data class TodayUiState(
+    val doses: List<TodayDoseItem>,
+    val prnMedications: List<Medication>,
+) {
+    val isEmpty: Boolean get() = doses.isEmpty() && prnMedications.isEmpty()
+
+    companion object {
+        val Empty = TodayUiState(doses = emptyList(), prnMedications = emptyList())
+    }
+}
+
+/** 按需药记录对话框所需的上下文(药物 + 安全提示)。 */
+data class PrnRecordState(
+    val medication: Medication,
+    val safety: PrnSafety,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -43,20 +64,29 @@ class TodayViewModel(
 ) : ViewModel() {
 
     /** 状态随时间流逝而变(待服用 → 到时间了 → 错过),界面打开时定期重算。 */
-    private val nowFlow: Flow<Instant> = clockTicks(clock, STATUS_REFRESH_MILLIS)
+    private val nowFlow = clockTicks(clock, STATUS_REFRESH_MILLIS)
 
-    val items: StateFlow<List<TodayDoseItem>> =
-        combine(
-            medicationRepository.observeMedications(),
-            nowFlow,
-        ) { medications, now -> medications to now }
-            .flatMapLatest { (medications, now) ->
-                val today = engine.today()
-                doseRecordRepository
-                    .observeScheduledBetween(engine.dayStart(today), engine.dayStart(today.plusDays(1)))
-                    .map { records -> buildItems(medications, records, now) }
-            }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val uiState: StateFlow<TodayUiState> = combine(
+        medicationRepository.observeMedications(),
+        nowFlow,
+    ) { medications, now -> medications to now }
+        .flatMapLatest { (medications, now) ->
+            val today = engine.today()
+            doseRecordRepository
+                .observeRecordsBetween(engine.dayStart(today), engine.dayStart(today.plusDays(1)))
+                .map { records ->
+                    TodayUiState(
+                        doses = buildDoses(medications, records, now),
+                        prnMedications = medications.filter {
+                            it.status == MedicationStatus.ACTIVE && it.schedule is Schedule.Prn
+                        },
+                    )
+                }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState.Empty)
+
+    private val _prnTarget = MutableStateFlow<PrnRecordState?>(null)
+    val prnTarget: StateFlow<PrnRecordState?> = _prnTarget.asStateFlow()
 
     fun markTaken(item: TodayDoseItem) = record(item, DoseAction.TAKEN)
 
@@ -68,13 +98,48 @@ class TodayViewModel(
         }
     }
 
+    fun startPrnRecord(medication: Medication) {
+        viewModelScope.launch {
+            val today = engine.today()
+            val lastTaken = doseRecordRepository.lastTaken(medication.id)
+            val takenToday = doseRecordRepository.countTaken(
+                medicationId = medication.id,
+                from = engine.dayStart(today),
+                to = engine.dayStart(today.plusDays(1)),
+            )
+            val schedule = medication.schedule as? Schedule.Prn
+            _prnTarget.value = PrnRecordState(
+                medication = medication,
+                safety = prnSafety(
+                    lastTakenAt = lastTaken?.actualAt,
+                    takenTodayCount = takenToday,
+                    minIntervalMinutes = schedule?.minIntervalMinutes,
+                    maxPerDay = schedule?.maxPerDay,
+                    now = clock.instant(),
+                ),
+            )
+        }
+    }
+
+    fun cancelPrnRecord() {
+        _prnTarget.value = null
+    }
+
+    fun confirmPrnRecord(amount: Double) {
+        val target = _prnTarget.value ?: return
+        viewModelScope.launch {
+            recordDose.recordPrn(target.medication.id, amount, clock.instant())
+            _prnTarget.value = null
+        }
+    }
+
     private fun record(item: TodayDoseItem, action: DoseAction) {
         viewModelScope.launch {
             recordDose.record(item.medication.id, item.scheduledAt, action, DoseSource.IN_APP)
         }
     }
 
-    private fun buildItems(
+    private fun buildDoses(
         medications: List<Medication>,
         records: List<DoseRecord>,
         now: Instant,

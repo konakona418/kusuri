@@ -13,7 +13,7 @@ class ReminderRescheduleReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         receiverScope.launch {
             try {
-                container.alarmScheduler.rescheduleAll()
+                container.runMaintenance()
             } finally {
                 pendingResult.finish()
             }

@@ -36,12 +36,21 @@
 
     <!-- 今日 -->
     <string name="today_empty">今天没有需要提醒的药物。</string>
+    <string name="today_section_title">今天</string>
     <string name="today_notifications_denied">开启通知权限才能收到服药提醒。</string>
     <string name="today_exact_alarm_denied">未授予精确闹钟权限,提醒可能延迟。</string>
     <string name="status_overdue">到时间了</string>
     <string name="status_taken_at">已服用 %1$s</string>
     <string name="status_skipped">已跳过</string>
     <string name="status_missed">已错过</string>
+
+    <!-- 按需(PRN) -->
+    <string name="prn_section_title">按需</string>
+    <string name="prn_record_action">记录</string>
+    <string name="prn_record_title">记录 %1$s</string>
+    <string name="prn_record_amount">数量</string>
+    <string name="prn_safety_interval">距上次仅 %1$s(建议间隔 %2$s)</string>
+    <string name="prn_safety_max">今日已达上限 %1$d 次</string>
     <string name="action_add_medication">添加药物</string>
 
     <!-- 占位与设置 -->
@@ -76,6 +85,10 @@
     <string name="stock_remaining">剩余 %1$s %2$s</string>
     <string name="stock_low">库存不足</string>
     <string name="detail_threshold">低于 %1$s %2$s 时提醒补药</string>
+    <string name="stock_alert_title">库存不足:%1$s</string>
+    <string name="stock_alert_text">剩余 %1$s %2$s,记得补货。</string>
+    <string name="channel_stock_alerts_name">补药提醒</string>
+    <string name="channel_stock_alerts_description">库存不足时提醒补货</string>
 
     <!-- 餐时标签 -->
     <string name="meal_before">饭前</string>
@@ -98,6 +111,11 @@
     <string name="refill_dialog_title">补货</string>
     <string name="refill_amount_label">补货数量</string>
     <string name="refill_confirm">确认补货</string>
+    <string name="action_adjust">调整</string>
+    <string name="adjust_dialog_title">调整库存</string>
+    <string name="adjust_target_label">调整后数量</string>
+    <string name="adjust_confirm">确认调整</string>
+    <string name="action_extend_course">延长疗程</string>
 
     <!-- 删除确认 -->
     <string name="delete_dialog_title">删除“%1$s”?</string>

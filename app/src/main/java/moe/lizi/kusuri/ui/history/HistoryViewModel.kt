@@ -53,7 +53,7 @@ class HistoryViewModel(
         .flatMapLatest { today ->
             combine(
                 medicationRepository.observeMedications(),
-                doseRecordRepository.observeScheduledBetween(
+                doseRecordRepository.observeRecordsBetween(
                     engine.dayStart(today.minusDays(WINDOW_DAYS - 1L)),
                     engine.dayStart(today.plusDays(1)),
                 ),

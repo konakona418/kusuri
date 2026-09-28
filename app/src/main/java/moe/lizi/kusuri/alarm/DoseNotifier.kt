@@ -12,46 +12,55 @@ import java.time.Instant
 import java.time.ZoneId
 import moe.lizi.kusuri.MainActivity
 import moe.lizi.kusuri.R
+import moe.lizi.kusuri.domain.LowStockAlertControl
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
 
 /**
- * 每味药同时只保留一条提醒通知(用 medicationId 作为通知 id):
- * 下一剂到点时替换上一剂,避免通知堆积;错过与否由 App 内的派生状态决定。
+ * 通知出口:
+ * - 服药提醒:每味药同时只保留一条通知(用 medicationId 作为 id),下一剂到点替换上一剂;
+ * - 低库存提醒:一次性的补药提示。
  */
-class DoseNotifier(private val context: Context) {
+class DoseNotifier(private val context: Context) : LowStockAlertControl {
 
     fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.channel_dose_reminders_name),
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description = context.getString(R.string.channel_dose_reminders_description)
-            enableVibration(true)
+        if (manager.getNotificationChannel(DOSE_CHANNEL_ID) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    DOSE_CHANNEL_ID,
+                    context.getString(R.string.channel_dose_reminders_name),
+                    NotificationManager.IMPORTANCE_HIGH,
+                ).apply {
+                    description = context.getString(R.string.channel_dose_reminders_description)
+                    enableVibration(true)
+                },
+            )
         }
-        manager.createNotificationChannel(channel)
+        if (manager.getNotificationChannel(STOCK_CHANNEL_ID) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    STOCK_CHANNEL_ID,
+                    context.getString(R.string.channel_stock_alerts_name),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ).apply {
+                    description = context.getString(R.string.channel_stock_alerts_description)
+                },
+            )
+        }
     }
 
     fun notify(medication: Medication, scheduledAt: Instant, now: Instant) {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
 
-        val contentIntent = PendingIntent.getActivity(
-            context,
-            notificationId(medication.id),
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
         val scheduledMillis = scheduledAt.toEpochMilli()
         val time = formatTime(scheduledAt.atZone(ZoneId.systemDefault()).toLocalTime())
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, DOSE_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_title, medication.name))
             .setContentText(notificationText(medication, time))
@@ -59,7 +68,7 @@ class DoseNotifier(private val context: Context) {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
             .setAutoCancel(false)
-            .setContentIntent(contentIntent)
+            .setContentIntent(contentIntent(doseNotificationId(medication.id)))
             .addAction(
                 R.drawable.ic_notification,
                 context.getString(R.string.action_taken),
@@ -78,11 +87,33 @@ class DoseNotifier(private val context: Context) {
             .setTimeoutAfter(timeoutMillis(scheduledAt, now))
             .build()
 
-        manager.notify(notificationId(medication.id), notification)
+        manager.notify(doseNotificationId(medication.id), notification)
     }
 
     fun cancel(medicationId: Long) {
-        NotificationManagerCompat.from(context).cancel(notificationId(medicationId))
+        NotificationManagerCompat.from(context).cancel(doseNotificationId(medicationId))
+    }
+
+    override fun notifyLowStock(medication: Medication) {
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return
+
+        val notification = NotificationCompat.Builder(context, STOCK_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.stock_alert_title, medication.name))
+            .setContentText(
+                context.getString(
+                    R.string.stock_alert_text,
+                    formatAmount(medication.remainingStock),
+                    medication.unit,
+                ),
+            )
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(contentIntent(lowStockNotificationId(medication.id)))
+            .build()
+
+        manager.notify(lowStockNotificationId(medication.id), notification)
     }
 
     /** 文案模板:剂量 · 计划时间[ · 餐时标签](docs/plan.md §4.1)。 */
@@ -101,6 +132,14 @@ class DoseNotifier(private val context: Context) {
         } ?: return base
         return context.getString(R.string.notification_text_with_meal, base, context.getString(mealLabelRes))
     }
+
+    private fun contentIntent(notificationId: Int): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            notificationId,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun doseAction(action: String, medicationId: Long, scheduledMillis: Long): PendingIntent {
         val intent = Intent(context, DoseActionReceiver::class.java).apply {
@@ -124,9 +163,12 @@ class DoseNotifier(private val context: Context) {
     }
 
     companion object {
-        const val CHANNEL_ID = "dose_reminders"
+        const val DOSE_CHANNEL_ID = "dose_reminders"
+        const val STOCK_CHANNEL_ID = "stock_alerts"
         private const val MIN_TIMEOUT_MILLIS = 60_000L
 
-        fun notificationId(medicationId: Long): Int = medicationId.hashCode()
+        fun doseNotificationId(medicationId: Long): Int = medicationId.hashCode()
+
+        fun lowStockNotificationId(medicationId: Long): Int = "stock:$medicationId".hashCode()
     }
 }

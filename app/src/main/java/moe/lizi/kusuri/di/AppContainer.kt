@@ -5,12 +5,15 @@ import java.time.Clock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import moe.lizi.kusuri.alarm.AlarmReminderScheduler
 import moe.lizi.kusuri.alarm.DoseNotifier
 import moe.lizi.kusuri.data.RoomDoseRecordRepository
 import moe.lizi.kusuri.data.RoomMedicationRepository
 import moe.lizi.kusuri.data.db.KusuriDatabase
+import moe.lizi.kusuri.domain.CheckLowStockUseCase
+import moe.lizi.kusuri.domain.CompleteFinishedCoursesUseCase
 import moe.lizi.kusuri.domain.DoseRecordRepository
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.RecordDoseUseCase
@@ -41,18 +44,36 @@ class AppContainer(context: Context) {
         AlarmReminderScheduler(appContext, medicationRepository, scheduleEngine, doseNotifier, clock)
     }
 
+    val checkLowStock: CheckLowStockUseCase by lazy {
+        CheckLowStockUseCase(medicationRepository, doseNotifier)
+    }
+
+    val completeFinishedCourses: CompleteFinishedCoursesUseCase by lazy {
+        CompleteFinishedCoursesUseCase(medicationRepository, scheduleEngine)
+    }
+
     val recordDose: RecordDoseUseCase by lazy {
-        RecordDoseUseCase(medicationRepository, doseRecordRepository, alarmScheduler)
+        RecordDoseUseCase(medicationRepository, doseRecordRepository, alarmScheduler, checkLowStock)
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var reminderSyncStarted = false
+
+    /** 开机/改时间/启动时的巡检:疗程收官、库存武装状态同步、整体重排闹钟。 */
+    suspend fun runMaintenance() {
+        completeFinishedCourses.completeFinished()
+        medicationRepository.observeMedications().first().forEach { medication ->
+            checkLowStock.check(medication.id, alertIfLow = false)
+        }
+        alarmScheduler.rescheduleAll()
+    }
 
     /** 药物数据一变就整体重排闹钟;幂等,可在 App 启动时重复调用。 */
     fun startReminderSync() {
         if (reminderSyncStarted) return
         reminderSyncStarted = true
         applicationScope.launch {
+            runMaintenance()
             medicationRepository.observeMedications().collect { medications ->
                 alarmScheduler.rescheduleAll(medications)
             }

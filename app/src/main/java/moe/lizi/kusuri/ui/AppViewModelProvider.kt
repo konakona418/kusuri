@@ -23,6 +23,7 @@ object AppViewModelProvider {
             MedicationDetailViewModel(
                 repository = container.medicationRepository,
                 scheduler = container.alarmScheduler,
+                checkLowStock = container.checkLowStock,
                 savedStateHandle = createSavedStateHandle(),
             )
         }

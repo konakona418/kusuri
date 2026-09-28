@@ -33,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.time.LocalDate
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.model.Schedule
@@ -40,6 +41,7 @@ import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatDate
 import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
+import moe.lizi.kusuri.ui.components.KusuriDatePickerDialog
 import moe.lizi.kusuri.ui.components.TagChip
 
 @Composable
@@ -51,6 +53,8 @@ fun MedicationDetailScreen(
     val medication by viewModel.medication.collectAsStateWithLifecycle()
     val closed by viewModel.closed.collectAsStateWithLifecycle()
     var showRefillDialog by rememberSaveable { mutableStateOf(false) }
+    var showAdjustDialog by rememberSaveable { mutableStateOf(false) }
+    var showExtendPicker by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(closed) {
@@ -123,6 +127,11 @@ fun MedicationDetailScreen(
                 } ?: stringResource(R.string.course_long_term),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (current.status != MedicationStatus.ARCHIVED) {
+                OutlinedButton(onClick = { showExtendPicker = true }) {
+                    Text(stringResource(R.string.action_extend_course))
+                }
+            }
         }
 
         DetailSection(title = stringResource(R.string.detail_section_stock)) {
@@ -139,8 +148,13 @@ fun MedicationDetailScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(onClick = { showRefillDialog = true }) {
-                Text(stringResource(R.string.action_refill))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { showRefillDialog = true }) {
+                    Text(stringResource(R.string.action_refill))
+                }
+                OutlinedButton(onClick = { showAdjustDialog = true }) {
+                    Text(stringResource(R.string.action_adjust))
+                }
             }
         }
 
@@ -173,11 +187,41 @@ fun MedicationDetailScreen(
     }
 
     if (showRefillDialog) {
-        RefillDialog(
+        StockAmountDialog(
+            title = stringResource(R.string.refill_dialog_title),
+            label = stringResource(R.string.refill_amount_label),
+            confirmLabel = stringResource(R.string.refill_confirm),
+            initialText = "",
             onDismiss = { showRefillDialog = false },
             onConfirm = { amount ->
                 viewModel.refill(amount)
                 showRefillDialog = false
+            },
+        )
+    }
+
+    if (showAdjustDialog) {
+        StockAmountDialog(
+            title = stringResource(R.string.adjust_dialog_title),
+            label = stringResource(R.string.adjust_target_label),
+            confirmLabel = stringResource(R.string.adjust_confirm),
+            initialText = formatAmount(current.remainingStock),
+            onDismiss = { showAdjustDialog = false },
+            onConfirm = { target ->
+                viewModel.adjustStock(target)
+                showAdjustDialog = false
+            },
+        )
+    }
+
+    if (showExtendPicker) {
+        KusuriDatePickerDialog(
+            title = stringResource(R.string.action_extend_course),
+            initial = current.courseEnd ?: LocalDate.now(),
+            onDismiss = { showExtendPicker = false },
+            onConfirm = { picked ->
+                viewModel.extendCourse(picked)
+                showExtendPicker = false
             },
         )
     }
@@ -219,19 +263,26 @@ private fun DetailSection(title: String, content: @Composable ColumnScope.() -> 
 }
 
 @Composable
-private fun RefillDialog(onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
+private fun StockAmountDialog(
+    title: String,
+    label: String,
+    confirmLabel: String,
+    initialText: String,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initialText) }
     val amount = text.trim().toDoubleOrNull()
-    val valid = amount != null && amount > 0
+    val valid = amount != null && amount >= 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.refill_dialog_title)) },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text(stringResource(R.string.refill_amount_label)) },
+                label = { Text(label) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 isError = text.isNotBlank() && !valid,
@@ -242,7 +293,7 @@ private fun RefillDialog(onDismiss: () -> Unit, onConfirm: (Double) -> Unit) {
                 onClick = { amount?.let(onConfirm) },
                 enabled = valid,
             ) {
-                Text(stringResource(R.string.refill_confirm))
+                Text(confirmLabel)
             }
         },
         dismissButton = {

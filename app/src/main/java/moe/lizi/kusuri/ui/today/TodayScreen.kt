@@ -18,9 +18,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
@@ -46,18 +50,21 @@ import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.ExactAlarmPermissions
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseStatus
+import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.DoseRecordDialog
 import moe.lizi.kusuri.ui.components.DoseStatusText
+import moe.lizi.kusuri.ui.medications.formatMinuteSpan
 
 @Composable
 fun TodayScreen(
     onOpenMedication: (Long) -> Unit,
     viewModel: TodayViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val items by viewModel.items.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val prnTarget by viewModel.prnTarget.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -107,7 +114,7 @@ fun TodayScreen(
             )
         }
 
-        if (items.isEmpty()) {
+        if (state.isEmpty) {
             Box(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 contentAlignment = Alignment.Center,
@@ -124,14 +131,25 @@ fun TodayScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(items, key = { "${it.medication.id}:${it.scheduledAt.epochSecond}" }) { item ->
-                    DoseRow(
-                        item = item,
-                        onClick = { onOpenMedication(item.medication.id) },
-                        onTaken = { viewModel.markTaken(item) },
-                        onSkip = { viewModel.markSkipped(item) },
-                        onBackfill = { backfillTarget = item },
-                    )
+                if (state.prnMedications.isNotEmpty()) {
+                    item { SectionHeader(stringResource(R.string.prn_section_title)) }
+                    items(state.prnMedications, key = { "prn-${it.id}" }) { medication ->
+                        PrnRow(medication = medication, onRecord = { viewModel.startPrnRecord(medication) })
+                    }
+                }
+                if (state.doses.isNotEmpty()) {
+                    if (state.prnMedications.isNotEmpty()) {
+                        item { SectionHeader(stringResource(R.string.today_section_title)) }
+                    }
+                    items(state.doses, key = { "${it.medication.id}:${it.scheduledAt.epochSecond}" }) { item ->
+                        DoseRow(
+                            item = item,
+                            onClick = { onOpenMedication(item.medication.id) },
+                            onTaken = { viewModel.markTaken(item) },
+                            onSkip = { viewModel.markSkipped(item) },
+                            onBackfill = { backfillTarget = item },
+                        )
+                    }
                 }
             }
         }
@@ -154,6 +172,54 @@ fun TodayScreen(
                 backfillTarget = null
             },
         )
+    }
+
+    prnTarget?.let { target ->
+        PrnRecordDialog(
+            state = target,
+            onDismiss = { viewModel.cancelPrnRecord() },
+            onConfirm = { amount -> viewModel.confirmPrnRecord(amount) },
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PrnRow(medication: Medication, onRecord: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(medication.name, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = stringResource(
+                        R.string.detail_dose,
+                        formatAmount(medication.defaultDose),
+                        medication.unit,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onRecord) {
+                Text(stringResource(R.string.prn_record_action))
+            }
+        }
     }
 }
 
@@ -214,6 +280,66 @@ private fun DoseRow(
             }
         }
     }
+}
+
+@Composable
+private fun PrnRecordDialog(
+    state: PrnRecordState,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit,
+) {
+    var amountText by remember { mutableStateOf(formatAmount(state.medication.defaultDose)) }
+    val amount = amountText.trim().toDoubleOrNull()
+    val valid = amount != null && amount > 0
+    val minutesSinceLastDose = state.safety.minutesSinceLastDose
+    val minIntervalMinutes = state.safety.minIntervalMinutes
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.prn_record_title, state.medication.name)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.safety.violatesMinInterval && minutesSinceLastDose != null && minIntervalMinutes != null) {
+                    Text(
+                        text = stringResource(
+                            R.string.prn_safety_interval,
+                            formatMinuteSpan(minutesSinceLastDose.toInt()),
+                            formatMinuteSpan(minIntervalMinutes),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                state.safety.maxPerDay?.let { maxPerDay ->
+                    if (state.safety.violatesMaxPerDay) {
+                        Text(
+                            text = stringResource(R.string.prn_safety_max, maxPerDay),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text(stringResource(R.string.prn_record_amount)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = amountText.isNotBlank() && !valid,
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { amount?.let(onConfirm) }, enabled = valid) {
+                Text(stringResource(R.string.prn_record_action))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 @Composable
