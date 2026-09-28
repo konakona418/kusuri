@@ -108,8 +108,8 @@
     <string name="csv_source_backfill">补记</string>
 
     <!-- 首次向导 -->
-    <string name="onboarding_title">让提醒真正可靠</string>
-    <string name="onboarding_body">三项检查,处理完就能放心:</string>
+    <string name="onboarding_title">提醒设置</string>
+    <string name="onboarding_body">请确保下方权限均已开启</string>
     <string name="onboarding_done">完成</string>
 
     <!-- 药物列表 -->
