@@ -5,13 +5,11 @@ import androidx.lifecycle.viewModelScope
 import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -27,6 +25,7 @@ import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.model.doseStatus
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
+import moe.lizi.kusuri.domain.util.clockTicks
 
 data class TodayDoseItem(
     val medication: Medication,
@@ -44,12 +43,7 @@ class TodayViewModel(
 ) : ViewModel() {
 
     /** 状态随时间流逝而变(待服用 → 到时间了 → 错过),界面打开时定期重算。 */
-    private val nowFlow: Flow<Instant> = flow {
-        while (true) {
-            emit(clock.instant())
-            delay(STATUS_REFRESH_MILLIS)
-        }
-    }
+    private val nowFlow: Flow<Instant> = clockTicks(clock, STATUS_REFRESH_MILLIS)
 
     val items: StateFlow<List<TodayDoseItem>> =
         combine(

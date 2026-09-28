@@ -22,6 +22,19 @@ class RecordDoseUseCase(
         scheduledAt: Instant,
         action: DoseAction,
         source: DoseSource,
+        actualAt: Instant? = null,
+    ): Boolean = recordInternal(medicationId, scheduledAt, action, source, actualAt)
+
+    /** 补记:为过去的计划剂量补一条"已服用",实际时间由用户指定。 */
+    suspend fun backfill(medicationId: Long, scheduledAt: Instant, actualAt: Instant): Boolean =
+        recordInternal(medicationId, scheduledAt, DoseAction.TAKEN, DoseSource.BACKFILL, actualAt)
+
+    private suspend fun recordInternal(
+        medicationId: Long,
+        scheduledAt: Instant,
+        action: DoseAction,
+        source: DoseSource,
+        actualAt: Instant?,
     ): Boolean {
         val medication = medicationRepository.observeMedication(medicationId).first() ?: return false
         val alreadyRecorded = doseRecordRepository.findByScheduled(medicationId, scheduledAt) != null
@@ -32,23 +45,6 @@ class RecordDoseUseCase(
                 amount = medication.defaultDose,
                 action = action,
                 source = source,
-            )
-        }
-        reminderControl.cancelDose(medicationId)
-        return !alreadyRecorded
-    }
-
-    /** 补记:为过去的计划剂量补一条"已服用",实际时间由用户指定。 */
-    suspend fun backfill(medicationId: Long, scheduledAt: Instant, actualAt: Instant): Boolean {
-        val medication = medicationRepository.observeMedication(medicationId).first() ?: return false
-        val alreadyRecorded = doseRecordRepository.findByScheduled(medicationId, scheduledAt) != null
-        if (!alreadyRecorded) {
-            doseRecordRepository.record(
-                medicationId = medicationId,
-                scheduledAt = scheduledAt,
-                amount = medication.defaultDose,
-                action = DoseAction.TAKEN,
-                source = DoseSource.BACKFILL,
                 actualAt = actualAt,
             )
         }

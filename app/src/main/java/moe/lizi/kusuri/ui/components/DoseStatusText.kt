@@ -4,11 +4,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import java.time.ZoneId
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.util.formatTime
-import androidx.compose.ui.res.stringResource
 
 /** 剂量的状态文字(不含操作按钮);可操作的状态由调用方补按钮。 */
 @Composable

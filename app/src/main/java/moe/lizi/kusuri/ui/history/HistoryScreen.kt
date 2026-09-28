@@ -32,6 +32,7 @@ import java.time.ZoneId
 import kotlin.math.roundToInt
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.history.AdherenceSummary
+import moe.lizi.kusuri.domain.history.HistoryDose
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
@@ -43,19 +44,22 @@ import moe.lizi.kusuri.ui.components.DoseStatusText
 fun HistoryScreen(
     viewModel: HistoryViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val timeline by viewModel.timeline.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<HistoryDose?>(null) }
     val zone = ZoneId.systemDefault()
 
     Column(modifier = Modifier.fillMaxSize()) {
         AdherenceCard(
-            sevenDays = state.adherence7,
-            thirtyDays = state.adherence30,
+            sevenDays = timeline.adherence7,
+            thirtyDays = timeline.adherence30,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
         )
 
-        if (state.days.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (timeline.days.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
                     text = stringResource(R.string.history_empty),
                     style = MaterialTheme.typography.bodyLarge,
@@ -64,14 +68,14 @@ fun HistoryScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                state.days.forEach { day ->
+                timeline.days.forEach { day ->
                     item(key = "day-${day.date}") {
                         Text(
-                            text = dayLabel(day.date),
+                            text = dayLabel(day.date, timeline.today),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 8.dp),
@@ -151,7 +155,9 @@ private fun AdherenceFigure(label: String, summary: AdherenceSummary) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = summary.rate?.let(::formatPercent) ?: stringResource(R.string.history_adherence_none),
+            text = summary.rate?.let { rate ->
+                stringResource(R.string.history_adherence_percent, (rate * 100).roundToInt())
+            } ?: stringResource(R.string.history_adherence_none),
             style = MaterialTheme.typography.headlineSmall,
         )
     }
@@ -193,9 +199,8 @@ private fun HistoryDoseRow(dose: HistoryDose, onClick: () -> Unit) {
 }
 
 @Composable
-private fun dayLabel(date: LocalDate): String {
-    val today = LocalDate.now()
-    return when (date) {
+private fun dayLabel(date: LocalDate, today: LocalDate): String =
+    when (date) {
         today -> stringResource(R.string.history_today)
         today.minusDays(1) -> stringResource(R.string.history_yesterday)
         else -> stringResource(
@@ -205,6 +210,3 @@ private fun dayLabel(date: LocalDate): String {
             stringArrayResource(R.array.weekday_names)[date.dayOfWeek.value - 1],
         )
     }
-}
-
-private fun formatPercent(rate: Double): String = "${(rate * 100).roundToInt()}%"

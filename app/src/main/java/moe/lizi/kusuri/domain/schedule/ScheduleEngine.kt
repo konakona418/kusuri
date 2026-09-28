@@ -18,6 +18,9 @@ class ScheduleEngine(
 
     fun today(): LocalDate = clock.instant().atZone(zone()).toLocalDate()
 
+    /** 把绝对时刻换算成设备本地日期(墙钟语义的唯一出处)。 */
+    fun dateOf(instant: Instant): LocalDate = instant.atZone(zone()).toLocalDate()
+
     fun dayStart(date: LocalDate): Instant = date.atStartOfDay(zone()).toInstant()
 
     fun plannedDosesOn(medication: Medication, date: LocalDate): List<Instant> {
