@@ -24,18 +24,21 @@ import androidx.compose.ui.unit.dp
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.DoseNotifier
 import moe.lizi.kusuri.alarm.ReliabilityChecks
+import moe.lizi.kusuri.alarm.labelRes
 import moe.lizi.kusuri.domain.model.ReminderLevel
 
 /**
  * 提醒等级选择(docs/plan.md §4.1)。
  *
  * 平台约束:渠道的重要性创建后应用改不了,所以这里选的是"以后用哪条渠道"。
- * 顺带做两件诚实的事:把"这条渠道在系统里被关掉了"说出来,并给一个直达系统设置的入口。
+ * 顺带三件诚实的事:能当场"试一下",把"这条渠道被系统关掉了"说出来,并给一个直达系统设置的入口。
  */
 @Composable
 fun ReminderLevelDialog(
     current: ReminderLevel,
+    testPosted: Boolean?,
     onSelect: (ReminderLevel) -> Unit,
+    onTest: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -61,7 +64,7 @@ fun ReminderLevelDialog(
                         Spacer(Modifier.width(8.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
-                                text = reminderLevelLabel(level),
+                                text = stringResource(level.labelRes()),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                             Text(
@@ -72,6 +75,30 @@ fun ReminderLevelDialog(
                         }
                     }
                 }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onTest) {
+                        Text(stringResource(R.string.settings_reminder_test))
+                    }
+                    testPosted?.let { posted ->
+                        Text(
+                            text = stringResource(
+                                if (posted) {
+                                    R.string.settings_reminder_test_sent
+                                } else {
+                                    R.string.settings_reminder_test_blocked
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (posted) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                        )
+                    }
+                }
+
                 if (blocked) {
                     Text(
                         text = stringResource(R.string.settings_reminder_blocked),
@@ -100,16 +127,6 @@ fun ReminderLevelDialog(
         },
     )
 }
-
-@Composable
-fun reminderLevelLabel(level: ReminderLevel): String = stringResource(
-    when (level) {
-        ReminderLevel.SILENT -> R.string.reminder_level_silent
-        ReminderLevel.VIBRATE -> R.string.reminder_level_vibrate
-        ReminderLevel.SOUND -> R.string.reminder_level_sound
-        ReminderLevel.BANNER -> R.string.reminder_level_banner
-    },
-)
 
 @Composable
 private fun reminderLevelDescription(level: ReminderLevel): String = stringResource(

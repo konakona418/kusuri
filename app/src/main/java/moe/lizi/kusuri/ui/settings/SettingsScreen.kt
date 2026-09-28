@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.ReliabilityChecks
+import moe.lizi.kusuri.alarm.labelRes
 import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.data.backup.CsvRange
 import moe.lizi.kusuri.ui.AppViewModelProvider
@@ -48,7 +49,6 @@ import moe.lizi.kusuri.ui.components.ReliabilityRow
 import moe.lizi.kusuri.ui.components.ReminderLevelDialog
 import moe.lizi.kusuri.ui.components.SettingRow
 import moe.lizi.kusuri.ui.components.LongPressDeleteLabel
-import moe.lizi.kusuri.ui.components.reminderLevelLabel
 import moe.lizi.kusuri.ui.components.rememberReliabilityState
 
 @Composable
@@ -60,6 +60,7 @@ fun SettingsScreen(
     val reliability = rememberReliabilityState()
     val gracePeriodHours by viewModel.gracePeriodHours.collectAsStateWithLifecycle()
     val reminderLevel by viewModel.reminderLevel.collectAsStateWithLifecycle()
+    val testReminderPosted by viewModel.testReminderPosted.collectAsStateWithLifecycle()
     val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
 
     var showGraceDialog by remember { mutableStateOf(false) }
@@ -138,7 +139,7 @@ fun SettingsScreen(
         SectionTitle(stringResource(R.string.settings_section_general))
         SettingRow(
             label = stringResource(R.string.settings_reminder_level),
-            value = reminderLevelLabel(reminderLevel),
+            value = stringResource(reminderLevel.labelRes()),
             onClick = { showReminderLevelDialog = true },
             contentPadding = PaddingValues(vertical = 14.dp),
         )
@@ -225,8 +226,13 @@ fun SettingsScreen(
     if (showReminderLevelDialog) {
         ReminderLevelDialog(
             current = reminderLevel,
+            testPosted = testReminderPosted,
             onSelect = viewModel::setReminderLevel,
-            onDismiss = { showReminderLevelDialog = false },
+            onTest = viewModel::sendTestReminder,
+            onDismiss = {
+                showReminderLevelDialog = false
+                viewModel.consumeTestReminder()
+            },
         )
     }
 

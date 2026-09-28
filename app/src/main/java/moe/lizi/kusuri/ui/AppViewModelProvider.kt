@@ -68,6 +68,7 @@ object AppViewModelProvider {
                 settings = container.settingsRepository,
                 backupService = container.backupService,
                 wipeAllData = container.wipeAllData,
+                doseNotifier = container.doseNotifier,
                 clock = container.clock,
             )
         }

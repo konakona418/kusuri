@@ -92,13 +92,23 @@ class DoseNotifier(
         importance: Int,
         configure: NotificationChannel.() -> Unit = {},
     ) {
-        if (manager.getNotificationChannel(id) != null) return
-        manager.createNotificationChannel(
-            NotificationChannel(id, context.getString(nameRes), importance).apply {
-                description = context.getString(descriptionRes)
-                configure()
-            },
-        )
+        val name = context.getString(nameRes)
+        val description = context.getString(descriptionRes)
+        val existing = manager.getNotificationChannel(id)
+        if (existing == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(id, name, importance).apply {
+                    this.description = description
+                    configure()
+                },
+            )
+            return
+        }
+        // 已存在时:名称与描述官方允许更新,更新的就是它们;
+        // 重要性/声音/震动创建后归用户掌控,应用改不动也不该改。
+        existing.name = name
+        existing.description = description
+        manager.createNotificationChannel(existing)
     }
 
     fun notify(medication: Medication, scheduledAt: Instant, now: Instant) {
@@ -169,6 +179,33 @@ class DoseNotifier(
 
     fun cancel(medicationId: Long) {
         NotificationManagerCompat.from(context).cancel(doseNotificationId(medicationId))
+    }
+
+    /**
+     * 发一条当前等级的测试提醒,让你当场核对响铃/震动/横幅。
+     *
+     * 刻意**不带任何动作按钮**:它不该能写进任何服药记录。
+     * 返回 false 表示系统层面通知被关掉了——界面要说明,而不是让你点了没反应。
+     */
+    fun notifyTest(level: ReminderLevel): Boolean {
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return false
+
+        val notification = NotificationCompat.Builder(context, channelIdFor(level))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(context.getString(R.string.notification_test_title))
+            .setContentText(
+                context.getString(R.string.notification_test_text, context.getString(level.labelRes())),
+            )
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .setSilent(level.isSilent)
+            .apply { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) applyLegacyLevel(level) }
+            .setContentIntent(contentIntent(TEST_NOTIFICATION_ID))
+            .build()
+
+        manager.notify(TEST_NOTIFICATION_ID, notification)
+        return true
     }
 
     override fun notifyLowStock(medication: Medication) {
@@ -263,5 +300,8 @@ class DoseNotifier(
         fun doseNotificationId(medicationId: Long): Int = medicationId.hashCode()
 
         fun lowStockNotificationId(medicationId: Long): Int = "stock:$medicationId".hashCode()
+
+        /** 测试提醒固定一个 id:连着点几次只会替换,不会堆一屏。 */
+        val TEST_NOTIFICATION_ID: Int = "kusuri-test-reminder".hashCode()
     }
 }

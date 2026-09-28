@@ -305,6 +305,11 @@
     <string name="reminder_level_banner">横幅</string>
     <string name="reminder_level_banner_description">响铃、震动、顶部弹出</string>
     <string name="settings_reminder_blocked">这条渠道在系统里被关掉了</string>
+    <string name="settings_reminder_test">试一下</string>
+    <string name="settings_reminder_test_sent">已发出，看看通知栏</string>
+    <string name="settings_reminder_test_blocked">系统里通知被关掉了</string>
+    <string name="notification_test_title">测试提醒</string>
+    <string name="notification_test_text">档位：%1$s</string>
     <string name="action_system_settings">系统设置</string>
     <string name="action_close">关闭</string>
 
