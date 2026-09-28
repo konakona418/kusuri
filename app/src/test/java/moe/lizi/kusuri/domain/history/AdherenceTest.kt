@@ -21,12 +21,21 @@ class AdherenceTest {
                 DoseStatus.Missed,
                 DoseStatus.Pending,
                 DoseStatus.Overdue,
+                DoseStatus.Untracked,
             ),
         )
 
         assertEquals(2, summary.taken)
         assertEquals(4, summary.resolved)
         assertEquals(0.5, summary.rate!!, 0.0)
+    }
+
+    @Test
+    fun `untracked doses do not count at all`() {
+        val summary = adherenceRate(listOf(DoseStatus.Untracked, DoseStatus.Untracked))
+
+        assertEquals(0, summary.resolved)
+        assertNull(summary.rate)
     }
 
     @Test

@@ -46,6 +46,7 @@
     <string name="status_taken_at">已服用 %1$s</string>
     <string name="status_skipped">已跳过</string>
     <string name="status_missed">已错过</string>
+    <string name="status_untracked">未追踪</string>
 
     <!-- 按需(PRN) -->
     <string name="prn_section_title">按需</string>

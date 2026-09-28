@@ -183,14 +183,16 @@ class TodayViewModel(
             .filter { it.status == MedicationStatus.ACTIVE }
             .flatMap { medication ->
                 engine.plannedDosesOn(medication, today).map { scheduledAt ->
+                    val record = recordsByDose[medication.id to scheduledAt]
                     TodayDoseItem(
                         medication = medication,
                         scheduledAt = scheduledAt,
                         status = doseStatus(
-                            record = recordsByDose[medication.id to scheduledAt],
+                            record = record,
                             scheduledAt = scheduledAt,
                             now = now,
                             gracePeriod = gracePeriod,
+                            trackedFrom = medication.createdAt,
                         ),
                     )
                 }

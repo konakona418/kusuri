@@ -83,7 +83,13 @@ fun buildHistoryTimeline(
                     medication = medication,
                     scheduledAt = scheduledAt,
                     record = record,
-                    status = doseStatus(record, scheduledAt, now, gracePeriod),
+                    status = doseStatus(
+                        record = record,
+                        scheduledAt = scheduledAt,
+                        now = now,
+                        gracePeriod = gracePeriod,
+                        trackedFrom = medication.createdAt,
+                    ),
                 )
             }
         }

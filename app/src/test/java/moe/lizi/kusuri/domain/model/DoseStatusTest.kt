@@ -62,6 +62,48 @@ class DoseStatusTest {
     }
 
     @Test
+    fun `doses before the medication was created are untracked`() {
+        val created = Instant.parse("2026-09-28T05:00:00Z")
+
+        assertEquals(
+            DoseStatus.Untracked,
+            doseStatus(
+                record = null,
+                scheduledAt = created.minusSeconds(3600),
+                now = created.plusSeconds(7200),
+                gracePeriod = grace,
+                trackedFrom = created,
+            ),
+        )
+        assertEquals(
+            DoseStatus.Missed,
+            doseStatus(
+                record = null,
+                scheduledAt = created.plusSeconds(3600),
+                now = created.plusSeconds(14400),
+                gracePeriod = grace,
+                trackedFrom = created,
+            ),
+        )
+    }
+
+    @Test
+    fun `a backfilled record before creation still counts as taken`() {
+        val created = Instant.parse("2026-09-28T05:00:00Z")
+
+        assertEquals(
+            DoseStatus.Taken(actualAt = actualAt, source = DoseSource.IN_APP),
+            doseStatus(
+                record = record(DoseAction.TAKEN),
+                scheduledAt = created.minusSeconds(3600),
+                now = created,
+                gracePeriod = grace,
+                trackedFrom = created,
+            ),
+        )
+    }
+
+    @Test
     fun `skipped record is not missed`() {
         assertEquals(
             DoseStatus.Skipped,

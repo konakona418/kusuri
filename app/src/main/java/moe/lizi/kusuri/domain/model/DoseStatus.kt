@@ -19,6 +19,12 @@ sealed interface DoseStatus {
 
     /** 超过计划时间 + 宽限窗口仍无记录(可补记,见 M3)。 */
     data object Missed : DoseStatus
+
+    /**
+     * 计划时间早于该药物的创建时间:这段时间 App 还没开始追踪,
+     * 不算错过、不计入遵守率,但允许补记(早上吃过、晚上才来建药)。
+     */
+    data object Untracked : DoseStatus
 }
 
 fun doseStatus(
@@ -26,7 +32,9 @@ fun doseStatus(
     scheduledAt: Instant,
     now: Instant,
     gracePeriod: Duration = DOSE_GRACE_PERIOD,
+    trackedFrom: Instant? = null,
 ): DoseStatus = when {
+    record == null && trackedFrom != null && scheduledAt.isBefore(trackedFrom) -> DoseStatus.Untracked
     record == null && now >= scheduledAt.plus(gracePeriod) -> DoseStatus.Missed
     record == null && now >= scheduledAt -> DoseStatus.Overdue
     record == null -> DoseStatus.Pending

@@ -161,6 +161,27 @@ class HistoryTimelineTest {
     }
 
     @Test
+    fun `doses scheduled before the medication was created are untracked`() {
+        // 药在 9/27 14:00 创建:当日 08:00(以及更早)的剂量不该算错过。
+        val createdAt = at(LocalDate.of(2026, 9, 27), LocalTime.of(14, 0))
+
+        val timeline = buildHistoryTimeline(
+            medications = listOf(medication().copy(createdAt = createdAt)),
+            records = emptyList(),
+            today = today,
+            now = now,
+            engine = engine,
+        )
+
+        val doseOnCreationDay = timeline.days
+            .single { it.date == LocalDate.of(2026, 9, 27) }
+            .doses
+            .single()
+        assertEquals(DoseStatus.Untracked, doseOnCreationDay.status)
+        assertEquals(0, timeline.adherence7.resolved)
+    }
+
+    @Test
     fun `prn records show at their actual time and stay out of adherence`() {
         val prnMedication = medication().copy(
             id = 2L,

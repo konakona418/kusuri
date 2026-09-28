@@ -22,7 +22,7 @@ fun adherenceRate(statuses: List<DoseStatus>): AdherenceSummary {
             }
 
             DoseStatus.Skipped, DoseStatus.Missed -> resolved++
-            DoseStatus.Pending, DoseStatus.Overdue -> Unit
+            DoseStatus.Pending, DoseStatus.Overdue, DoseStatus.Untracked -> Unit
         }
     }
     return AdherenceSummary(taken = taken, resolved = resolved)

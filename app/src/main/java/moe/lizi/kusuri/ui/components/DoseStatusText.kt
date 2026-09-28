@@ -51,5 +51,12 @@ fun DoseStatusText(status: DoseStatus, modifier: Modifier = Modifier) {
             color = error,
             modifier = modifier,
         )
+
+        DoseStatus.Untracked -> Text(
+            text = stringResource(R.string.status_untracked),
+            style = style,
+            color = muted,
+            modifier = modifier,
+        )
     }
 }

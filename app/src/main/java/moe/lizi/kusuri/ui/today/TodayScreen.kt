@@ -327,6 +327,11 @@ private fun DoseRow(
                     DoseStatusText(status, modifier = Modifier.weight(1f))
                     TextButton(onClick = onBackfill) { Text(stringResource(R.string.action_backfill)) }
                 }
+
+                DoseStatus.Untracked -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    DoseStatusText(status, modifier = Modifier.weight(1f))
+                    TextButton(onClick = onBackfill) { Text(stringResource(R.string.action_backfill)) }
+                }
             }
         }
     }
