@@ -179,16 +179,15 @@ class TodayViewModel(
         val recordsByDose = records
             .filter { it.scheduledAt != null }
             .associateBy { it.medicationId to it.scheduledAt }
-        return medications
+        val ordered = medications
             .filter { it.status == MedicationStatus.ACTIVE }
             .flatMap { medication ->
                 engine.plannedDosesOn(medication, today).map { scheduledAt ->
-                    val record = recordsByDose[medication.id to scheduledAt]
                     TodayDoseItem(
                         medication = medication,
                         scheduledAt = scheduledAt,
                         status = doseStatus(
-                            record = record,
+                            record = recordsByDose[medication.id to scheduledAt],
                             scheduledAt = scheduledAt,
                             now = now,
                             gracePeriod = gracePeriod,
@@ -197,7 +196,9 @@ class TodayViewModel(
                     )
                 }
             }
-            .sortedBy { it.scheduledAt }
+        // 未到时间的排在前面(由近到远),已经过去的时间排在后面(由早到晚)。
+        val (upcoming, past) = ordered.partition { it.scheduledAt.isAfter(now) }
+        return upcoming.sortedBy { it.scheduledAt } + past.sortedBy { it.scheduledAt }
     }
 
     private companion object {

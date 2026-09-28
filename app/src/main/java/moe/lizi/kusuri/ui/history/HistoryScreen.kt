@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -159,6 +161,13 @@ private fun AdherenceCard(
                 AdherenceFigure(stringResource(R.string.history_adherence_7d), sevenDays)
                 AdherenceFigure(stringResource(R.string.history_adherence_30d), thirtyDays)
             }
+            if (sevenDays.rate == null && thirtyDays.rate == null) {
+                Text(
+                    text = stringResource(R.string.history_adherence_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -171,11 +180,20 @@ private fun AdherenceFigure(label: String, summary: AdherenceSummary) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        val rate = summary.rate
         Text(
-            text = summary.rate?.let { rate ->
-                stringResource(R.string.history_adherence_percent, (rate * 100).roundToInt())
-            } ?: stringResource(R.string.history_adherence_none),
-            style = MaterialTheme.typography.headlineSmall,
+            text = rate?.let { stringResource(R.string.history_adherence_percent, (it * 100).roundToInt()) }
+                ?: stringResource(R.string.history_adherence_none),
+            style = if (rate == null) {
+                MaterialTheme.typography.titleMedium
+            } else {
+                MaterialTheme.typography.headlineSmall
+            },
+            color = if (rate == null) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         )
     }
 }
@@ -195,21 +213,26 @@ private fun HistoryDoseRow(dose: HistoryDose, onClick: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.width(56.dp),
             )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(dose.medication.name, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    text = stringResource(
-                        R.string.detail_dose,
-                        formatAmount(dose.medication.defaultDose),
-                        dose.medication.unit,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            val muted = MaterialTheme.colorScheme.onSurfaceVariant
+            Text(
+                text = dose.medication.name,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Text("·", style = MaterialTheme.typography.bodySmall, color = muted)
+            Text(
+                text = stringResource(
+                    R.string.detail_dose,
+                    formatAmount(dose.medication.defaultDose),
+                    dose.medication.unit,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = muted,
+                maxLines = 1,
+            )
+            Spacer(Modifier.weight(1f))
             DoseStatusText(dose.status)
         }
     }

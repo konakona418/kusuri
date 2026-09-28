@@ -283,7 +283,8 @@
     <string name="history_adherence_title">遵守率</string>
     <string name="history_adherence_7d">近 7 天</string>
     <string name="history_adherence_30d">近 30 天</string>
-    <string name="history_adherence_none">—</string>
+    <string name="history_adherence_none">暂无判定</string>
+    <string name="history_adherence_hint">已服用 / 跳过 / 错过会计入遵守率;待服用、到时间了、未追踪暂不参与。</string>
     <string name="history_adherence_percent">%1$d%%</string>
     <string name="history_empty">还没有可回顾的记录。</string>
     <string name="history_today">今天</string>

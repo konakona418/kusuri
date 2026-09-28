@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -288,67 +290,85 @@ private fun DoseRow(
     val time = formatTime(item.scheduledAt.atZone(zone).toLocalTime())
 
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            Text(
+                text = time,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.width(56.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(
-                    text = time,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.width(56.dp),
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                val muted = MaterialTheme.colorScheme.onSurfaceVariant
+                // 药名 · 剂量(一行),状态靠右——与历史页同构。
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    // 第一行:药名 + 剂量(左),状态(右)——与历史页同构。
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Text(
-                                text = item.medication.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = stringResource(
-                                    R.string.detail_dose,
-                                    formatAmount(item.medication.defaultDose),
-                                    item.medication.unit,
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        DoseStatusText(item.status)
+                    Text(
+                        text = item.medication.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text("·", style = MaterialTheme.typography.bodySmall, color = muted)
+                    Text(
+                        text = stringResource(
+                            R.string.detail_dose,
+                            formatAmount(item.medication.defaultDose),
+                            item.medication.unit,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = muted,
+                        maxLines = 1,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    DoseStatusText(item.status)
+                }
+                // 操作:首项左端与药名严格对齐(自绘文字操作,不用 TextButton 的内边距)。
+                when (item.status) {
+                    DoseStatus.Pending, DoseStatus.Overdue -> Row {
+                        RowAction(text = stringResource(R.string.action_taken), onClick = onTaken)
+                        RowAction(
+                            text = stringResource(R.string.action_skip),
+                            onClick = onSkip,
+                            indent = true,
+                        )
                     }
-                    // 第二行:操作统一放在内容列里(与药名左对齐)。
-                    when (item.status) {
-                        DoseStatus.Pending, DoseStatus.Overdue -> Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            TextButton(onClick = onTaken) { Text(stringResource(R.string.action_taken)) }
-                            TextButton(onClick = onSkip) { Text(stringResource(R.string.action_skip)) }
-                        }
 
-                        DoseStatus.Missed, DoseStatus.Untracked -> Row {
-                            TextButton(onClick = onBackfill) {
-                                Text(stringResource(R.string.action_backfill))
-                            }
-                        }
+                    DoseStatus.Missed, DoseStatus.Untracked ->
+                        RowAction(text = stringResource(R.string.action_backfill), onClick = onBackfill)
 
-                        else -> Unit
-                    }
+                    else -> Unit
                 }
             }
         }
     }
+}
+
+/** 卡片内的文字操作:首项无左内边距,因此左端与药名对齐。 */
+@Composable
+private fun RowAction(text: String, onClick: () -> Unit, indent: Boolean = false) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(
+                start = if (indent) 12.dp else 0.dp,
+                end = 12.dp,
+                top = 8.dp,
+                bottom = 8.dp,
+            ),
+    )
 }
 
 @Composable
