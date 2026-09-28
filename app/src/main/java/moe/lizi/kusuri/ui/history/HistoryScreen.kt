@@ -45,6 +45,7 @@ import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.DoseRecordDialog
 import moe.lizi.kusuri.ui.components.DoseStatusText
+import moe.lizi.kusuri.ui.components.MedicationTitle
 import moe.lizi.kusuri.ui.components.dayLabel
 import moe.lizi.kusuri.ui.components.severityDots
 
@@ -198,25 +199,16 @@ private fun HistoryDoseRow(dose: HistoryDose, onClick: () -> Unit) {
                 modifier = Modifier.width(56.dp),
             )
             val muted = MaterialTheme.colorScheme.onSurfaceVariant
-            Text(
-                text = dose.medication.name,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            Text("·", style = MaterialTheme.typography.bodySmall, color = muted)
-            Text(
-                text = stringResource(
-                    R.string.detail_dose,
+            MedicationTitle(
+                name = dose.medication.name,
+                doseLabel = stringResource(
+                    R.string.list_dose,
                     formatAmount(dose.medication.defaultDose),
                     dose.medication.unit,
                 ),
-                style = MaterialTheme.typography.bodySmall,
-                color = muted,
-                maxLines = 1,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp))
             DoseStatusText(dose.status)
         }
     }

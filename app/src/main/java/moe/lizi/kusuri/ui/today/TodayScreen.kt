@@ -65,6 +65,7 @@ import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.DoseRecordDialog
 import moe.lizi.kusuri.ui.components.DoseStatusText
+import moe.lizi.kusuri.ui.components.MedicationTitle
 import moe.lizi.kusuri.ui.medications.formatMinuteSpan
 
 @Composable
@@ -305,30 +306,17 @@ private fun DoseRow(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 val muted = MaterialTheme.colorScheme.onSurfaceVariant
-                // 药名 · 剂量(一行),状态靠右——与历史页同构。
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = item.medication.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Text("·", style = MaterialTheme.typography.bodySmall, color = muted)
-                    Text(
-                        text = stringResource(
-                            R.string.detail_dose,
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MedicationTitle(
+                        name = item.medication.name,
+                        doseLabel = stringResource(
+                            R.string.list_dose,
                             formatAmount(item.medication.defaultDose),
                             item.medication.unit,
                         ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = muted,
-                        maxLines = 1,
+                        modifier = Modifier.weight(1f),
                     )
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
                     DoseStatusText(item.status)
                 }
                 // 操作:首项左端与药名严格对齐(自绘文字操作,不用 TextButton 的内边距)。

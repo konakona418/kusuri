@@ -79,7 +79,7 @@
     <string name="reliability_pending">待处理</string>
     <string name="settings_section_general">常规</string>
     <string name="settings_reminder_sound">提醒声音与震动</string>
-    <string name="settings_reminder_sound_description">默认开启:按计划响铃并震动(普通通知)。关闭后只显示通知。</string>
+    <string name="settings_reminder_sound_description">关闭后只显示通知</string>
     <string name="settings_grace_period">宽限窗口</string>
     <string name="settings_grace_period_value">%1$d 小时</string>
     <string name="grace_dialog_title">宽限窗口</string>
@@ -284,6 +284,7 @@
     <string name="history_adherence_7d">近 7 天</string>
     <string name="history_adherence_30d">近 30 天</string>
     <string name="history_adherence_none">—</string>
+    <string name="list_dose">%1$s %2$s</string>
     <string name="history_adherence_percent">%1$d%%</string>
     <string name="history_empty">还没有可回顾的记录。</string>
     <string name="history_today">今天</string>

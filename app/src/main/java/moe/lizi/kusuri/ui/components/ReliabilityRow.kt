@@ -9,13 +9,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import moe.lizi.kusuri.R
 
-/** 可靠性检查的一行:名称 — 状态(— 去设置)。 */
+/**
+ * 可靠性检查的一行:名称 —— 状态(靠右)—— 需要时"去设置"。
+ * 状态紧跟右端,不预留空位,避免"已就绪"旁边出现一块空白。
+ */
 @Composable
 fun ReliabilityRow(label: String, ready: Boolean, onFix: () -> Unit) {
     Row(
@@ -41,16 +42,7 @@ fun ReliabilityRow(label: String, ready: Boolean, onFix: () -> Unit) {
                 MaterialTheme.colorScheme.error
             },
         )
-        if (ready) {
-            // 占位:保持各行的"状态"与操作列对齐(不可见且对无障碍隐藏)。
-            TextButton(
-                onClick = {},
-                enabled = false,
-                modifier = Modifier.alpha(0f).clearAndSetSemantics {},
-            ) {
-                Text(stringResource(R.string.action_open_settings))
-            }
-        } else {
+        if (!ready) {
             TextButton(onClick = onFix) {
                 Text(stringResource(R.string.action_open_settings))
             }
