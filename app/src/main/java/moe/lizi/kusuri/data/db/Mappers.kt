@@ -4,6 +4,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import moe.lizi.kusuri.domain.model.DoseAction
+import moe.lizi.kusuri.domain.model.DoseRecord
+import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.IntervalUnit
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
@@ -86,3 +89,13 @@ private fun MedicationEntity.toSchedule(times: List<MedicationTimeEntity>): Sche
 
         else -> error("未知的排程模式: $scheduleMode")
     }
+
+internal fun DoseRecordEntity.toDomain(): DoseRecord = DoseRecord(
+    id = id,
+    medicationId = medicationId,
+    scheduledAt = scheduledAt?.let(Instant::ofEpochMilli),
+    actualAt = Instant.ofEpochMilli(actualAt),
+    amount = amount,
+    action = DoseAction.valueOf(action),
+    source = DoseSource.valueOf(source),
+)

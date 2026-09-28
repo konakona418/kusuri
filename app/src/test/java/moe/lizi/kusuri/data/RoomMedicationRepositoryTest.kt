@@ -154,9 +154,9 @@ class RoomMedicationRepositoryTest {
         repository.addStock(id, StockEventType.REFILL, 30.0)
         repository.addStock(id, StockEventType.REFILL, 10.0)
 
-        db.medicationDao().insertDoseRecord(takenRecord(id, amount = 1.0))
+        db.doseRecordDao().insert(takenRecord(id, amount = 1.0))
         val skipped = takenRecord(id, amount = 1.0).copy(action = "SKIPPED")
-        db.medicationDao().insertDoseRecord(skipped)
+        db.doseRecordDao().insert(skipped)
 
         val loaded = repository.observeMedication(id).first()!!
         assertEquals(39.0, loaded.remainingStock, 0.0)

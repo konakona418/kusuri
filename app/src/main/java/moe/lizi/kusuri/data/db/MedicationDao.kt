@@ -64,7 +64,4 @@ interface MedicationDao {
 
     @Insert
     suspend fun insertStockEvent(event: StockEventEntity): Long
-
-    @Insert
-    suspend fun insertDoseRecord(record: DoseRecordEntity): Long
 }

@@ -19,6 +19,8 @@ abstract class KusuriDatabase : RoomDatabase() {
 
     abstract fun medicationDao(): MedicationDao
 
+    abstract fun doseRecordDao(): DoseRecordDao
+
     companion object {
         const val NAME = "kusuri.db"
 
