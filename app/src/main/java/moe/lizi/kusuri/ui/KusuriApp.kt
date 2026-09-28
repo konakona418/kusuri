@@ -146,7 +146,10 @@ fun KusuriApp(navController: NavHostController = rememberNavController()) {
     }
 
     if (!onboardingDone) {
-        OnboardingDialog(onDone = { settingsViewModel.completeOnboarding() })
+        OnboardingDialog(
+            onDone = { settingsViewModel.completeOnboarding() },
+            onDismissRequest = { /* 首次向导必须显式完成,避免误触即算跳过 */ },
+        )
     }
 }
 

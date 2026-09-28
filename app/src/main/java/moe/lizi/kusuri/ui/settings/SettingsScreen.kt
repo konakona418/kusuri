@@ -1,13 +1,13 @@
 package moe.lizi.kusuri.ui.settings
 
 import android.Manifest
-import android.content.Context
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,62 +18,51 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.ReliabilityChecks
-import moe.lizi.kusuri.data.backup.CsvLabels
 import moe.lizi.kusuri.data.SettingsRepository
+import moe.lizi.kusuri.data.backup.CsvLabels
 import moe.lizi.kusuri.ui.AppViewModelProvider
+import moe.lizi.kusuri.ui.components.OnboardingDialog
 import moe.lizi.kusuri.ui.components.ReliabilityRow
 import moe.lizi.kusuri.ui.components.SettingRow
+import moe.lizi.kusuri.ui.components.rememberReliabilityState
 
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val reliability = rememberReliabilityState()
     val gracePeriodHours by viewModel.gracePeriodHours.collectAsStateWithLifecycle()
+    val reminderSoundEnabled by viewModel.reminderSoundEnabled.collectAsStateWithLifecycle()
     val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
 
-    var notificationsEnabled by remember { mutableStateOf(ReliabilityChecks.notificationsEnabled(context)) }
-    var exactAlarmsAllowed by remember { mutableStateOf(ReliabilityChecks.exactAlarmsAllowed(context)) }
-    var batteryIgnored by remember { mutableStateOf(ReliabilityChecks.batteryOptimizationIgnored(context)) }
     var showGraceDialog by remember { mutableStateOf(false) }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                notificationsEnabled = ReliabilityChecks.notificationsEnabled(context)
-                exactAlarmsAllowed = ReliabilityChecks.exactAlarmsAllowed(context)
-                batteryIgnored = ReliabilityChecks.batteryOptimizationIgnored(context)
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+    var showCsvRangeDialog by remember { mutableStateOf(false) }
+    var pendingCsvRange by remember { mutableStateOf<CsvRange?>(null) }
+    var showWizard by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> notificationsEnabled = granted }
+    ) { /* 回到前台后 rememberReliabilityState 会重新读取 */ }
 
     val csvLabels = CsvLabels(
         header = listOf(
@@ -93,7 +82,11 @@ fun SettingsScreen(
 
     val exportCsvLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/csv"),
-    ) { uri -> uri?.let { viewModel.exportCsv(it, csvLabels) } }
+    ) { uri ->
+        val range = pendingCsvRange
+        pendingCsvRange = null
+        if (uri != null && range != null) viewModel.exportCsv(uri, csvLabels, range)
+    }
 
     val exportJsonLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
@@ -121,7 +114,7 @@ fun SettingsScreen(
         SectionTitle(stringResource(R.string.settings_section_reliability))
         ReliabilityRow(
             label = stringResource(R.string.reliability_notifications),
-            ready = notificationsEnabled,
+            ready = reliability.notificationsEnabled,
             onFix = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -132,16 +125,28 @@ fun SettingsScreen(
         )
         ReliabilityRow(
             label = stringResource(R.string.reliability_exact_alarm),
-            ready = exactAlarmsAllowed,
+            ready = reliability.exactAlarmsAllowed,
             onFix = { ReliabilityChecks.openExactAlarmSettings(context) },
         )
         ReliabilityRow(
             label = stringResource(R.string.reliability_battery),
-            ready = batteryIgnored,
+            ready = reliability.batteryOptimizationIgnored,
             onFix = { ReliabilityChecks.openBatteryOptimizationSettings(context) },
         )
+        OutlinedButton(
+            onClick = { showWizard = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.settings_rerun_wizard))
+        }
 
         SectionTitle(stringResource(R.string.settings_section_general))
+        SwitchRow(
+            label = stringResource(R.string.settings_reminder_sound),
+            description = stringResource(R.string.settings_reminder_sound_description),
+            checked = reminderSoundEnabled,
+            onCheckedChange = { viewModel.setReminderSoundEnabled(it) },
+        )
         SettingRow(
             label = stringResource(R.string.settings_grace_period),
             value = stringResource(R.string.settings_grace_period_value, gracePeriodHours),
@@ -155,7 +160,7 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedButton(
-            onClick = { exportCsvLauncher.launch("kusuri-records.csv") },
+            onClick = { showCsvRangeDialog = true },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.backup_export_csv))
@@ -195,6 +200,56 @@ fun SettingsScreen(
             },
         )
     }
+
+    if (showCsvRangeDialog) {
+        CsvRangeDialog(
+            onDismiss = { showCsvRangeDialog = false },
+            onConfirm = { range ->
+                showCsvRangeDialog = false
+                pendingCsvRange = range
+                exportCsvLauncher.launch("kusuri-records.csv")
+            },
+        )
+    }
+
+    if (showWizard) {
+        OnboardingDialog(
+            onDone = { showWizard = false },
+            onDismissRequest = { showWizard = false },
+        )
+    }
+}
+
+@Composable
+private fun CsvRangeDialog(onDismiss: () -> Unit, onConfirm: (CsvRange) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.csv_range_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CsvRange.entries.forEach { range ->
+                    OutlinedButton(
+                        onClick = { onConfirm(range) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(csvRangeLabel(range))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun csvRangeLabel(range: CsvRange): String = when (range) {
+    CsvRange.LAST_30_DAYS -> stringResource(R.string.csv_range_30)
+    CsvRange.LAST_90_DAYS -> stringResource(R.string.csv_range_90)
+    CsvRange.ALL -> stringResource(R.string.csv_range_all)
 }
 
 @Composable
@@ -238,6 +293,32 @@ private fun GracePeriodDialog(
             }
         },
     )
+}
+
+@Composable
+private fun SwitchRow(
+    label: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
 }
 
 @Composable

@@ -49,7 +49,7 @@ class AppContainer(context: Context) {
 
     val backupService: BackupService by lazy { BackupService(appContext, database, clock) }
 
-    val doseNotifier: DoseNotifier by lazy { DoseNotifier(appContext) }
+    val doseNotifier: DoseNotifier by lazy { DoseNotifier(appContext, settingsRepository) }
 
     val alarmScheduler: AlarmReminderScheduler by lazy {
         AlarmReminderScheduler(appContext, medicationRepository, scheduleEngine, doseNotifier, clock)

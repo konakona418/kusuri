@@ -13,6 +13,7 @@ import java.time.ZoneId
 import moe.lizi.kusuri.MainActivity
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.LowStockAlertControl
+import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.util.formatAmount
@@ -23,19 +24,36 @@ import moe.lizi.kusuri.domain.util.formatTime
  * - 服药提醒:每味药同时只保留一条通知(用 medicationId 作为 id),下一剂到点替换上一剂;
  * - 低库存提醒:一次性的补药提示。
  */
-class DoseNotifier(private val context: Context) : LowStockAlertControl {
+class DoseNotifier(
+    private val context: Context,
+    private val settings: SettingsRepository,
+) : LowStockAlertControl {
 
     fun ensureChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        if (manager.getNotificationChannel(DOSE_CHANNEL_ID) == null) {
+        // 提醒分静音/响铃两个渠道:渠道重要性创建后不可改,因此按设置选择渠道。
+        if (manager.getNotificationChannel(SILENT_CHANNEL_ID) == null) {
             manager.createNotificationChannel(
                 NotificationChannel(
-                    DOSE_CHANNEL_ID,
-                    context.getString(R.string.channel_dose_reminders_name),
+                    SILENT_CHANNEL_ID,
+                    context.getString(R.string.channel_dose_reminders_silent_name),
+                    NotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = context.getString(R.string.channel_dose_reminders_silent_description)
+                    enableVibration(false)
+                    setSound(null, null)
+                },
+            )
+        }
+        if (manager.getNotificationChannel(ALERT_CHANNEL_ID) == null) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    ALERT_CHANNEL_ID,
+                    context.getString(R.string.channel_dose_reminders_alert_name),
                     NotificationManager.IMPORTANCE_HIGH,
                 ).apply {
-                    description = context.getString(R.string.channel_dose_reminders_description)
+                    description = context.getString(R.string.channel_dose_reminders_alert_description)
                     enableVibration(true)
                 },
             )
@@ -59,15 +77,17 @@ class DoseNotifier(private val context: Context) : LowStockAlertControl {
 
         val scheduledMillis = scheduledAt.toEpochMilli()
         val time = formatTime(scheduledAt.atZone(ZoneId.systemDefault()).toLocalTime())
+        val channelId = if (settings.reminderSoundEnabled.value) ALERT_CHANNEL_ID else SILENT_CHANNEL_ID
 
-        val notification = NotificationCompat.Builder(context, DOSE_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.getString(R.string.notification_title, medication.name))
             .setContentText(notificationText(medication, time))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOngoing(true)
             .setAutoCancel(false)
+            .setSilent(!settings.reminderSoundEnabled.value)
             .setContentIntent(contentIntent(doseNotificationId(medication.id)))
             .addAction(
                 R.drawable.ic_notification,
@@ -163,7 +183,8 @@ class DoseNotifier(private val context: Context) : LowStockAlertControl {
     }
 
     companion object {
-        const val DOSE_CHANNEL_ID = "dose_reminders"
+        const val SILENT_CHANNEL_ID = "dose_reminders_silent"
+        const val ALERT_CHANNEL_ID = "dose_reminders_alert"
         const val STOCK_CHANNEL_ID = "stock_alerts"
         private const val MIN_TIMEOUT_MILLIS = 60_000L
 

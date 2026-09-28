@@ -31,8 +31,10 @@
     <string name="notification_title">该服药了:%1$s</string>
     <string name="notification_text">%1$s %2$s · 计划 %3$s</string>
     <string name="notification_text_with_meal">%1$s · %2$s</string>
-    <string name="channel_dose_reminders_name">用药提醒</string>
-    <string name="channel_dose_reminders_description">按计划提醒服药</string>
+    <string name="channel_dose_reminders_silent_name">用药提醒(静音)</string>
+    <string name="channel_dose_reminders_silent_description">只显示通知,不响铃、不震动</string>
+    <string name="channel_dose_reminders_alert_name">用药提醒(响铃)</string>
+    <string name="channel_dose_reminders_alert_description">按计划响铃并震动提醒</string>
 
     <!-- 今日 -->
     <string name="today_empty">今天没有需要提醒的药物。</string>
@@ -66,12 +68,15 @@
 
     <!-- 可靠性检查与设置 -->
     <string name="settings_section_reliability">提醒健康检查</string>
+    <string name="settings_rerun_wizard">重新检查提醒设置</string>
     <string name="reliability_notifications">通知权限</string>
     <string name="reliability_exact_alarm">精确闹钟</string>
     <string name="reliability_battery">电池优化白名单</string>
     <string name="reliability_ok">已就绪</string>
     <string name="reliability_pending">待处理</string>
     <string name="settings_section_general">常规</string>
+    <string name="settings_reminder_sound">提醒声音与震动</string>
+    <string name="settings_reminder_sound_description">默认关闭:只显示通知。打开后按计划响铃并震动。</string>
     <string name="settings_grace_period">宽限窗口</string>
     <string name="settings_grace_period_value">%1$d 小时</string>
     <string name="grace_dialog_title">宽限窗口</string>
@@ -81,6 +86,10 @@
     <string name="settings_section_backup">备份与导出</string>
     <string name="settings_backup_description">数据只保存在本机;导出与导入都通过系统文件选择器,全程无网络。</string>
     <string name="backup_export_csv">导出服药记录(CSV)</string>
+    <string name="csv_range_title">导出时间范围</string>
+    <string name="csv_range_30">近 30 天</string>
+    <string name="csv_range_90">近 90 天</string>
+    <string name="csv_range_all">全部记录</string>
     <string name="backup_export_json">导出完整备份(JSON)</string>
     <string name="backup_import_json">导入备份(JSON)</string>
     <string name="backup_import_warning">导入会覆盖本机现有全部数据。</string>

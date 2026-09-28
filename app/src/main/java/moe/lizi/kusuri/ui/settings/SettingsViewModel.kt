@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,9 @@ sealed interface BackupStatus {
     data object Failed : BackupStatus
 }
 
+/** CSV 导出的时间区间(docs/plan.md §8:CSV 按时间区间,给医生看)。 */
+enum class CsvRange { LAST_30_DAYS, LAST_90_DAYS, ALL }
+
 class SettingsViewModel(
     private val settings: SettingsRepository,
     private val backupService: BackupService,
@@ -28,11 +32,14 @@ class SettingsViewModel(
 
     val gracePeriodHours: StateFlow<Int> = settings.gracePeriodHours
     val onboardingDone: StateFlow<Boolean> = settings.onboardingDone
+    val reminderSoundEnabled: StateFlow<Boolean> = settings.reminderSoundEnabled
 
     private val _backupStatus = MutableStateFlow<BackupStatus?>(null)
     val backupStatus: StateFlow<BackupStatus?> = _backupStatus.asStateFlow()
 
     fun setGracePeriodHours(hours: Int) = settings.setGracePeriodHours(hours)
+
+    fun setReminderSoundEnabled(enabled: Boolean) = settings.setReminderSoundEnabled(enabled)
 
     fun completeOnboarding() = settings.setOnboardingDone(true)
 
@@ -40,10 +47,15 @@ class SettingsViewModel(
         _backupStatus.value = null
     }
 
-    fun exportCsv(uri: Uri, labels: CsvLabels) {
+    fun exportCsv(uri: Uri, labels: CsvLabels, range: CsvRange) {
         runCatchingAsync {
             val to = clock.instant()
-            backupService.writeText(uri, backupService.exportCsv(to.minus(CSV_WINDOW), to, labels))
+            val from = when (range) {
+                CsvRange.LAST_30_DAYS -> to.minus(Duration.ofDays(30))
+                CsvRange.LAST_90_DAYS -> to.minus(Duration.ofDays(90))
+                CsvRange.ALL -> Instant.EPOCH
+            }
+            backupService.writeText(uri, backupService.exportCsv(from, to, labels))
             BackupStatus.CsvExported
         }
     }
@@ -67,9 +79,5 @@ class SettingsViewModel(
             _backupStatus.value = runCatching { block() }
                 .getOrElse { BackupStatus.Failed }
         }
-    }
-
-    private companion object {
-        val CSV_WINDOW: Duration = Duration.ofDays(30)
     }
 }
