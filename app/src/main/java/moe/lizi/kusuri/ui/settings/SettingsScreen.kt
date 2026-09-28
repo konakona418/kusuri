@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -168,6 +169,7 @@ fun SettingsScreen(
             label = stringResource(R.string.settings_grace_period),
             value = stringResource(R.string.settings_grace_period_value, gracePeriodHours),
             onClick = { showGraceDialog = true },
+            contentPadding = PaddingValues(vertical = 14.dp),
         )
 
         SectionTitle(stringResource(R.string.settings_section_backup))
