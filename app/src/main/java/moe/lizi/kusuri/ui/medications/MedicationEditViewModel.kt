@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import moe.lizi.kusuri.domain.MedicationRepository
+import moe.lizi.kusuri.domain.CheckLowStockUseCase
 import moe.lizi.kusuri.domain.form.MedicationFormErrors
 import moe.lizi.kusuri.domain.form.MedicationFormState
 import moe.lizi.kusuri.domain.form.toFormState
@@ -21,6 +22,7 @@ import moe.lizi.kusuri.domain.model.StockEventType
 
 class MedicationEditViewModel(
     private val repository: MedicationRepository,
+    private val checkLowStock: CheckLowStockUseCase,
     private val clock: Clock,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -66,6 +68,7 @@ class MedicationEditViewModel(
             if (existing == null) {
                 val initialStock = state.initialStockText.trim().toDouble()
                 if (initialStock > 0) repository.addStock(id, StockEventType.INITIAL, initialStock)
+                checkLowStock.initialize(id)
             }
             _saved.value = true
         }

@@ -115,16 +115,15 @@ fun buildHistoryTimeline(
         .map { (day, doses) -> HistoryDay(date = day, doses = doses.sortedBy { it.scheduledAt }) }
 
     // 遵守率只看计划剂量(含对不上计划的记录);按需记录不属于"应服而未服"。
-    val scheduledStatuses = days
-        .flatMap { it.doses }
-        .filter { it.record?.scheduledAt != null || it.record == null }
-        .map { it.status }
+    val scheduledDose = { dose: HistoryDose ->
+        dose.record?.scheduledAt != null || dose.record == null
+    }
     val last7 = days
         .filter { !it.date.isBefore(today.minusDays(6)) }
         .flatMap { it.doses }
-        .filter { it.record?.scheduledAt != null || it.record == null }
+        .filter(scheduledDose)
         .map { it.status }
-    val last30 = scheduledStatuses
+    val last30 = days.flatMap { it.doses }.filter(scheduledDose).map { it.status }
 
     return HistoryTimeline(
         today = today,

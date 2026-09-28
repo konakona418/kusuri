@@ -37,14 +37,27 @@ data class TodayDoseItem(
     val status: DoseStatus,
 )
 
+data class PrnInfo(
+    val medication: Medication,
+    val lastTakenAt: Instant?,
+    val takenTodayCount: Int,
+)
+
 data class TodayUiState(
+    val now: Instant,
     val doses: List<TodayDoseItem>,
-    val prnMedications: List<Medication>,
+    val prnInfos: List<PrnInfo>,
+    val lowStockMedications: List<Medication>,
 ) {
-    val isEmpty: Boolean get() = doses.isEmpty() && prnMedications.isEmpty()
+    val isEmpty: Boolean get() = doses.isEmpty() && prnInfos.isEmpty()
 
     companion object {
-        val Empty = TodayUiState(doses = emptyList(), prnMedications = emptyList())
+        val Empty = TodayUiState(
+            now = Instant.EPOCH,
+            doses = emptyList(),
+            prnInfos = emptyList(),
+            lowStockMedications = emptyList(),
+        )
     }
 }
 
@@ -75,10 +88,23 @@ class TodayViewModel(
             doseRecordRepository
                 .observeRecordsBetween(engine.dayStart(today), engine.dayStart(today.plusDays(1)))
                 .map { records ->
+                    val active = medications.filter { it.status == MedicationStatus.ACTIVE }
                     TodayUiState(
-                        doses = buildDoses(medications, records, now),
-                        prnMedications = medications.filter {
-                            it.status == MedicationStatus.ACTIVE && it.schedule is Schedule.Prn
+                        now = now,
+                        doses = buildDoses(active, records, now),
+                        prnInfos = active
+                            .filter { it.schedule is Schedule.Prn }
+                            .map { medication ->
+                                PrnInfo(
+                                    medication = medication,
+                                    lastTakenAt = doseRecordRepository.lastTaken(medication.id)?.actualAt,
+                                    takenTodayCount = records.count {
+                                        it.medicationId == medication.id && it.action == DoseAction.TAKEN
+                                    },
+                                )
+                            },
+                        lowStockMedications = active.filter {
+                            it.remainingStock <= it.lowStockThreshold
                         },
                     )
                 }

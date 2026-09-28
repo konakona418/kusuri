@@ -31,6 +31,7 @@ object AppViewModelProvider {
             val container = kusuriApplication().container
             MedicationEditViewModel(
                 repository = container.medicationRepository,
+                checkLowStock = container.checkLowStock,
                 clock = container.clock,
                 savedStateHandle = createSavedStateHandle(),
             )

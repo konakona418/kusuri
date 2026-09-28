@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -32,6 +33,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +47,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.time.Duration
+import java.time.Instant
 import java.time.ZoneId
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.alarm.ExactAlarmPermissions
@@ -113,6 +117,9 @@ fun TodayScreen(
                 },
             )
         }
+        if (state.lowStockMedications.isNotEmpty()) {
+            LowStockBanner(medications = state.lowStockMedications)
+        }
 
         if (state.isEmpty) {
             Box(
@@ -131,14 +138,18 @@ fun TodayScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (state.prnMedications.isNotEmpty()) {
+                if (state.prnInfos.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.prn_section_title)) }
-                    items(state.prnMedications, key = { "prn-${it.id}" }) { medication ->
-                        PrnRow(medication = medication, onRecord = { viewModel.startPrnRecord(medication) })
+                    items(state.prnInfos, key = { "prn-${it.medication.id}" }) { info ->
+                        PrnRow(
+                            info = info,
+                            now = state.now,
+                            onRecord = { viewModel.startPrnRecord(info.medication) },
+                        )
                     }
                 }
                 if (state.doses.isNotEmpty()) {
-                    if (state.prnMedications.isNotEmpty()) {
+                    if (state.prnInfos.isNotEmpty()) {
                         item { SectionHeader(stringResource(R.string.today_section_title)) }
                     }
                     items(state.doses, key = { "${it.medication.id}:${it.scheduledAt.epochSecond}" }) { item ->
@@ -193,9 +204,27 @@ private fun SectionHeader(text: String) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PrnRow(medication: Medication, onRecord: () -> Unit) {
+private fun LowStockBanner(medications: List<Medication>) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = if (medications.size == 1) {
+                stringResource(R.string.stock_banner_single, medications.single().name)
+            } else {
+                stringResource(R.string.stock_banner_multiple, medications.size)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun PrnRow(info: PrnInfo, now: Instant, onRecord: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
@@ -205,13 +234,18 @@ private fun PrnRow(medication: Medication, onRecord: () -> Unit) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(medication.name, style = MaterialTheme.typography.titleSmall)
+                Text(info.medication.name, style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = stringResource(
                         R.string.detail_dose,
-                        formatAmount(medication.defaultDose),
-                        medication.unit,
+                        formatAmount(info.medication.defaultDose),
+                        info.medication.unit,
                     ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = prnStatusText(info, now),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -220,6 +254,21 @@ private fun PrnRow(medication: Medication, onRecord: () -> Unit) {
                 Text(stringResource(R.string.prn_record_action))
             }
         }
+    }
+}
+
+@Composable
+private fun prnStatusText(info: PrnInfo, now: Instant): String {
+    val lastTakenAt = info.lastTakenAt
+    return when {
+        lastTakenAt != null -> stringResource(
+            R.string.prn_row_last_today,
+            formatMinuteSpan(Duration.between(lastTakenAt, now).toMinutes().coerceAtLeast(0L).toInt()),
+            info.takenTodayCount,
+        )
+
+        info.takenTodayCount > 0 -> stringResource(R.string.prn_row_today, info.takenTodayCount)
+        else -> stringResource(R.string.prn_row_none)
     }
 }
 
@@ -288,7 +337,7 @@ private fun PrnRecordDialog(
     onDismiss: () -> Unit,
     onConfirm: (Double) -> Unit,
 ) {
-    var amountText by remember { mutableStateOf(formatAmount(state.medication.defaultDose)) }
+    var amountText by rememberSaveable { mutableStateOf(formatAmount(state.medication.defaultDose)) }
     val amount = amountText.trim().toDoubleOrNull()
     val valid = amount != null && amount > 0
     val minutesSinceLastDose = state.safety.minutesSinceLastDose
@@ -299,23 +348,41 @@ private fun PrnRecordDialog(
         title = { Text(stringResource(R.string.prn_record_title, state.medication.name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.safety.violatesMinInterval && minutesSinceLastDose != null && minIntervalMinutes != null) {
+                if (minutesSinceLastDose != null && minIntervalMinutes != null) {
                     Text(
                         text = stringResource(
-                            R.string.prn_safety_interval,
+                            R.string.prn_dialog_last,
                             formatMinuteSpan(minutesSinceLastDose.toInt()),
                             formatMinuteSpan(minIntervalMinutes),
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = if (state.safety.violatesMinInterval) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
+                Text(
+                    text = stringResource(R.string.prn_dialog_today_count, state.safety.takenTodayCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 state.safety.maxPerDay?.let { maxPerDay ->
                     if (state.safety.violatesMaxPerDay) {
                         Text(
                             text = stringResource(R.string.prn_safety_max, maxPerDay),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(QUICK_AMOUNT_ONE, QUICK_AMOUNT_TWO).forEach { quick ->
+                        FilterChip(
+                            selected = amountText == quick,
+                            onClick = { amountText = quick },
+                            label = { Text(quick) },
                         )
                     }
                 }
@@ -365,6 +432,9 @@ private fun PermissionBanner(text: String, actionLabel: String, onAction: () -> 
 
 private fun areNotificationsEnabled(context: Context): Boolean =
     NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+private const val QUICK_AMOUNT_ONE = "1"
+private const val QUICK_AMOUNT_TWO = "2"
 
 private fun openAppNotificationSettings(context: Context) {
     val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)

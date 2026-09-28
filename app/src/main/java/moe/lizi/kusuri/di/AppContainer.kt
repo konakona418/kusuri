@@ -59,13 +59,18 @@ class AppContainer(context: Context) {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var reminderSyncStarted = false
 
-    /** 开机/改时间/启动时的巡检:疗程收官、库存武装状态同步、整体重排闹钟。 */
+    /** 开机/改时间/启动时的巡检:疗程收官、库存告警同步、整体重排闹钟。 */
     suspend fun runMaintenance() {
+        prepare()
+        alarmScheduler.rescheduleAll()
+    }
+
+    /** 只需要执行一次的巡检步骤(App 启动时会接着订阅药物变化,由订阅负责重排)。 */
+    private suspend fun prepare() {
         completeFinishedCourses.completeFinished()
         medicationRepository.observeMedications().first().forEach { medication ->
-            checkLowStock.check(medication.id, alertIfLow = false)
+            checkLowStock.check(medication.id)
         }
-        alarmScheduler.rescheduleAll()
     }
 
     /** 药物数据一变就整体重排闹钟;幂等,可在 App 启动时重复调用。 */
@@ -73,7 +78,7 @@ class AppContainer(context: Context) {
         if (reminderSyncStarted) return
         reminderSyncStarted = true
         applicationScope.launch {
-            runMaintenance()
+            prepare()
             medicationRepository.observeMedications().collect { medications ->
                 alarmScheduler.rescheduleAll(medications)
             }

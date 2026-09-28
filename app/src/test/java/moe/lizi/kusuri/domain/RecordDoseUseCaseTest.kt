@@ -106,6 +106,31 @@ class RecordDoseUseCaseTest {
     }
 
     @Test
+    fun `low stock alerts once and then disarms`() = runTest {
+        val medicationRepository = FakeMedicationRepository(medication)
+        val lowStockControl = FakeLowStockControl()
+        val check = CheckLowStockUseCase(medicationRepository, lowStockControl)
+
+        check.check(1L)
+        check.check(1L)
+
+        assertEquals(listOf(medication), lowStockControl.notified)
+        assertTrue(medicationRepository.armedChanges.contains(1L to false))
+    }
+
+    @Test
+    fun `initialize only arms medications that track stock`() = runTest {
+        // 剩余 0 视为"从未录入库存":不武装,避免凭空打扰。
+        val untracked = FakeMedicationRepository(medication)
+        CheckLowStockUseCase(untracked, FakeLowStockControl()).initialize(1L)
+        assertTrue(untracked.armedChanges.contains(1L to false))
+
+        val tracked = FakeMedicationRepository(medication.copy(remainingStock = 30.0))
+        CheckLowStockUseCase(tracked, FakeLowStockControl()).initialize(1L)
+        assertTrue(tracked.armedChanges.contains(1L to true))
+    }
+
+    @Test
     fun `unknown medication is ignored`() = runTest {
         val records = FakeDoseRecordRepository()
         val useCase = useCase(records = records, medicationRepository = FakeMedicationRepository(null))
@@ -115,7 +140,9 @@ class RecordDoseUseCaseTest {
     }
 }
 
-private class FakeMedicationRepository(private val medication: Medication?) : MedicationRepository {
+private class FakeMedicationRepository(private var medication: Medication?) : MedicationRepository {
+    val armedChanges = mutableListOf<Pair<Long, Boolean>>()
+
     override fun observeMedications(): Flow<List<Medication>> = flowOf(listOfNotNull(medication))
     override fun observeMedication(id: Long): Flow<Medication?> =
         flowOf(medication?.takeIf { it.id == id })
@@ -123,7 +150,10 @@ private class FakeMedicationRepository(private val medication: Medication?) : Me
     override suspend fun setStatus(id: Long, status: MedicationStatus) = Unit
     override suspend fun delete(id: Long) = Unit
     override suspend fun addStock(id: Long, type: StockEventType, amount: Double) = Unit
-    override suspend fun setStockAlertArmed(id: Long, armed: Boolean) = Unit
+    override suspend fun setStockAlertArmed(id: Long, armed: Boolean) {
+        armedChanges += id to armed
+        medication = medication?.copy(stockAlertArmed = armed)
+    }
 }
 
 private class FakeDoseRecordRepository : DoseRecordRepository {
