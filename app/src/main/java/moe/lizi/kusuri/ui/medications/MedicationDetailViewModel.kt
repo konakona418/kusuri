@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import moe.lizi.kusuri.alarm.AlarmReminderScheduler
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -16,6 +17,7 @@ import moe.lizi.kusuri.domain.model.StockEventType
 
 class MedicationDetailViewModel(
     private val repository: MedicationRepository,
+    private val scheduler: AlarmReminderScheduler,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -35,6 +37,7 @@ class MedicationDetailViewModel(
 
     fun archive() {
         viewModelScope.launch {
+            scheduler.cancelAllFor(medicationId)
             repository.setStatus(medicationId, MedicationStatus.ARCHIVED)
             _closed.value = true
         }
@@ -48,6 +51,7 @@ class MedicationDetailViewModel(
 
     fun delete() {
         viewModelScope.launch {
+            scheduler.cancelAllFor(medicationId)
             repository.delete(medicationId)
             _closed.value = true
         }

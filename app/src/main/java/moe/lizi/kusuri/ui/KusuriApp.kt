@@ -99,7 +99,11 @@ fun KusuriApp(navController: NavHostController = rememberNavController()) {
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(Routes.TODAY) {
-                TodayScreen()
+                TodayScreen(
+                    onOpenMedication = { medicationId ->
+                        navController.navigate(Routes.medicationDetail(medicationId))
+                    },
+                )
             }
             composable(Routes.MEDICATIONS) {
                 MedicationListScreen(

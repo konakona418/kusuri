@@ -39,6 +39,7 @@ import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.util.formatAmount
+import moe.lizi.kusuri.domain.util.formatDate
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.TagChip
 

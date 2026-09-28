@@ -21,6 +21,26 @@
     <string name="action_archive">归档</string>
     <string name="action_refill">补货</string>
     <string name="action_unarchive">取消归档</string>
+    <string name="action_taken">已服用</string>
+    <string name="action_skip">跳过</string>
+    <string name="action_snooze_15">稍后 15 分钟</string>
+    <string name="action_grant">开启</string>
+    <string name="action_open_settings">去设置</string>
+
+    <!-- 通知 -->
+    <string name="notification_title">该服药了:%1$s</string>
+    <string name="notification_text">%1$s %2$s · 计划 %3$s</string>
+    <string name="channel_dose_reminders_name">用药提醒</string>
+    <string name="channel_dose_reminders_description">按计划提醒服药</string>
+
+    <!-- 今日 -->
+    <string name="today_empty">今天没有需要提醒的药物。</string>
+    <string name="today_notifications_denied">开启通知权限才能收到服药提醒。</string>
+    <string name="today_exact_alarm_denied">未授予精确闹钟权限,提醒可能延迟。</string>
+    <string name="status_overdue">到时间了</string>
+    <string name="status_taken_at">已服用 %1$s</string>
+    <string name="status_skipped">已跳过</string>
+    <string name="status_missed">已错过</string>
     <string name="action_add_medication">添加药物</string>
 
     <!-- 占位与设置 -->

@@ -9,6 +9,7 @@ import moe.lizi.kusuri.KusuriApplication
 import moe.lizi.kusuri.ui.medications.MedicationDetailViewModel
 import moe.lizi.kusuri.ui.medications.MedicationEditViewModel
 import moe.lizi.kusuri.ui.medications.MedicationListViewModel
+import moe.lizi.kusuri.ui.today.TodayViewModel
 
 object AppViewModelProvider {
 
@@ -17,8 +18,10 @@ object AppViewModelProvider {
             MedicationListViewModel(kusuriApplication().container.medicationRepository)
         }
         initializer {
+            val container = kusuriApplication().container
             MedicationDetailViewModel(
-                repository = kusuriApplication().container.medicationRepository,
+                repository = container.medicationRepository,
+                scheduler = container.alarmScheduler,
                 savedStateHandle = createSavedStateHandle(),
             )
         }
@@ -28,6 +31,16 @@ object AppViewModelProvider {
                 repository = container.medicationRepository,
                 clock = container.clock,
                 savedStateHandle = createSavedStateHandle(),
+            )
+        }
+        initializer {
+            val container = kusuriApplication().container
+            TodayViewModel(
+                medicationRepository = container.medicationRepository,
+                doseRecordRepository = container.doseRecordRepository,
+                engine = container.scheduleEngine,
+                scheduler = container.alarmScheduler,
+                clock = container.clock,
             )
         }
     }
