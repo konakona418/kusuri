@@ -20,7 +20,7 @@ fun SettingRow(label: String, value: String, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            modifier = Modifier.padding(vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
