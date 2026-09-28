@@ -227,18 +227,20 @@ fun MedicationEditScreen(
         }
 
         SectionTitle(stringResource(R.string.form_section_stock))
-        if (viewModel.isNew) {
-            OutlinedTextField(
-                value = state.initialStockText,
-                onValueChange = { value -> viewModel.update { it.copy(initialStockText = value) } },
-                label = { Text(stringResource(R.string.form_initial_stock)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                isError = errors?.get(FormField.INITIAL_STOCK) != null,
-                supportingText = supportingError(errors, FormField.INITIAL_STOCK),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+        OutlinedTextField(
+            value = state.initialStockText,
+            onValueChange = { value -> viewModel.update { it.copy(initialStockText = value) } },
+            label = { Text(stringResource(R.string.form_initial_stock)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            isError = errors?.get(FormField.INITIAL_STOCK) != null,
+            supportingText = if (viewModel.isNew) {
+                supportingError(errors, FormField.INITIAL_STOCK)
+            } else {
+                { Text(stringResource(R.string.form_stock_edit_hint)) }
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
         OutlinedTextField(
             value = state.lowStockThresholdText,
             onValueChange = { value -> viewModel.update { it.copy(lowStockThresholdText = value) } },

@@ -197,6 +197,7 @@ class MedicationFormValidationTest {
 
         assertTrue(form.validate().isValid)
         assertEquals(medication, form.toMedication(existing = medication, clock = clock))
+        assertEquals("3.5", form.initialStockText)
     }
 
     @Test

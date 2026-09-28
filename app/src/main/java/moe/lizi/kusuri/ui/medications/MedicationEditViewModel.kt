@@ -65,10 +65,18 @@ class MedicationEditViewModel(
 
         viewModelScope.launch {
             val id = repository.save(state.toMedication(existing, clock))
+            val enteredStock = state.initialStockText.trim().toDouble()
             if (existing == null) {
-                val initialStock = state.initialStockText.trim().toDouble()
-                if (initialStock > 0) repository.addStock(id, StockEventType.INITIAL, initialStock)
+                if (enteredStock > 0) repository.addStock(id, StockEventType.INITIAL, enteredStock)
                 checkLowStock.initialize(id)
+            } else {
+                // 编辑时填写的数量按"盘点调整"落盘:库存是派生值,只能通过事件修正。
+                val current = repository.observeMedication(id).first() ?: return@launch
+                val delta = enteredStock - current.remainingStock
+                if (delta != 0.0) {
+                    repository.addStock(id, StockEventType.ADJUST, delta)
+                    checkLowStock.check(id)
+                }
             }
             _saved.value = true
         }

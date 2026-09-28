@@ -181,6 +181,6 @@ fun Medication.toFormState(): MedicationFormState {
         courseStart = courseStart,
         courseEnd = courseEnd,
         lowStockThresholdText = formatAmount(lowStockThreshold),
-        initialStockText = "0",
+        initialStockText = formatAmount(remainingStock),
     )
 }

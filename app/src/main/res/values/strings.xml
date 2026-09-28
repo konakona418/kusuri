@@ -250,6 +250,7 @@
     <string name="form_course_end">结束日期</string>
     <string name="form_section_stock">库存</string>
     <string name="form_initial_stock">当前数量</string>
+    <string name="form_stock_edit_hint">修改后会记为一笔盘点调整</string>
     <string name="form_threshold">低于多少提醒补药</string>
     <string name="form_section_notes">备注</string>
     <string name="form_notes_hint">如:随餐、医生叮嘱…</string>
