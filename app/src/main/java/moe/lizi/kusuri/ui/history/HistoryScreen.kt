@@ -22,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,6 +38,7 @@ import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.DoseRecordDialog
 import moe.lizi.kusuri.ui.components.DoseStatusText
+import moe.lizi.kusuri.ui.components.dayLabel
 
 @Composable
 fun HistoryScreen(
@@ -197,16 +197,3 @@ private fun HistoryDoseRow(dose: HistoryDose, onClick: () -> Unit) {
         }
     }
 }
-
-@Composable
-private fun dayLabel(date: LocalDate, today: LocalDate): String =
-    when (date) {
-        today -> stringResource(R.string.history_today)
-        today.minusDays(1) -> stringResource(R.string.history_yesterday)
-        else -> stringResource(
-            R.string.history_day_label,
-            date.monthValue,
-            date.dayOfMonth,
-            stringArrayResource(R.array.weekday_names)[date.dayOfWeek.value - 1],
-        )
-    }

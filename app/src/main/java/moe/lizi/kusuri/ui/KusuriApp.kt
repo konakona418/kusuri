@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
@@ -34,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.ui.components.OnboardingDialog
 import moe.lizi.kusuri.ui.history.HistoryScreen
+import moe.lizi.kusuri.ui.log.LogScreen
 import moe.lizi.kusuri.ui.medications.MedicationDetailScreen
 import moe.lizi.kusuri.ui.medications.MedicationEditScreen
 import moe.lizi.kusuri.ui.medications.MedicationListScreen
@@ -43,6 +45,7 @@ import moe.lizi.kusuri.ui.today.TodayScreen
 
 object Routes {
     const val TODAY = "today"
+    const val LOG = "log"
     const val MEDICATIONS = "medications"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
@@ -63,6 +66,7 @@ private data class TopLevelDestination(
 
 private val TOP_LEVEL_DESTINATIONS = listOf(
     TopLevelDestination(Routes.TODAY, R.string.tab_today, Icons.Filled.Home),
+    TopLevelDestination(Routes.LOG, R.string.tab_log, Icons.Filled.Edit),
     TopLevelDestination(Routes.MEDICATIONS, R.string.tab_medications, Icons.Filled.List),
     TopLevelDestination(Routes.HISTORY, R.string.tab_history, Icons.Filled.DateRange),
 )
@@ -110,6 +114,9 @@ fun KusuriApp(navController: NavHostController = rememberNavController()) {
                         navController.navigate(Routes.medicationDetail(medicationId))
                     },
                 )
+            }
+            composable(Routes.LOG) {
+                LogScreen()
             }
             composable(Routes.MEDICATIONS) {
                 MedicationListScreen(
@@ -159,6 +166,7 @@ private fun KusuriTopBar(route: String?, onBack: () -> Unit, onSettings: () -> U
     val isTopLevel = TOP_LEVEL_DESTINATIONS.any { it.route == route }
     val title = when (route) {
         Routes.TODAY -> stringResource(R.string.tab_today)
+        Routes.LOG -> stringResource(R.string.tab_log)
         Routes.MEDICATIONS -> stringResource(R.string.tab_medications)
         Routes.HISTORY -> stringResource(R.string.tab_history)
         Routes.SETTINGS -> stringResource(R.string.title_settings)
