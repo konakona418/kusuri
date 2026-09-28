@@ -161,13 +161,6 @@ private fun AdherenceCard(
                 AdherenceFigure(stringResource(R.string.history_adherence_7d), sevenDays)
                 AdherenceFigure(stringResource(R.string.history_adherence_30d), thirtyDays)
             }
-            if (sevenDays.rate == null && thirtyDays.rate == null) {
-                Text(
-                    text = stringResource(R.string.history_adherence_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
     }
 }
@@ -184,16 +177,7 @@ private fun AdherenceFigure(label: String, summary: AdherenceSummary) {
         Text(
             text = rate?.let { stringResource(R.string.history_adherence_percent, (it * 100).roundToInt()) }
                 ?: stringResource(R.string.history_adherence_none),
-            style = if (rate == null) {
-                MaterialTheme.typography.titleMedium
-            } else {
-                MaterialTheme.typography.headlineSmall
-            },
-            color = if (rate == null) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+            style = MaterialTheme.typography.headlineSmall,
         )
     }
 }
