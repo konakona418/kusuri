@@ -13,11 +13,13 @@ import kotlinx.coroutines.launch
 import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.data.backup.BackupService
 import moe.lizi.kusuri.data.backup.CsvLabels
+import moe.lizi.kusuri.domain.WipeAllDataUseCase
 
 sealed interface BackupStatus {
     data object CsvExported : BackupStatus
     data object JsonExported : BackupStatus
     data class Imported(val medications: Int) : BackupStatus
+    data object Wiped : BackupStatus
     data object Failed : BackupStatus
 }
 
@@ -27,6 +29,7 @@ enum class CsvRange { LAST_30_DAYS, LAST_90_DAYS, ALL }
 class SettingsViewModel(
     private val settings: SettingsRepository,
     private val backupService: BackupService,
+    private val wipeAllData: WipeAllDataUseCase,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -71,6 +74,14 @@ class SettingsViewModel(
         runCatchingAsync {
             val imported = backupService.importJson(backupService.readText(uri))
             BackupStatus.Imported(imported)
+        }
+    }
+
+    /** 危险操作:调用方必须先做双重确认。 */
+    fun deleteAllData() {
+        runCatchingAsync {
+            wipeAllData.wipe()
+            BackupStatus.Wiped
         }
     }
 

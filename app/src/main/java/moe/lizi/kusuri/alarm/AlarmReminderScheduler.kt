@@ -63,7 +63,7 @@ class AlarmReminderScheduler(
     }
 
     /** 药物被归档/删除:清掉它的全部提醒痕迹。 */
-    fun cancelAllFor(medicationId: Long) {
+    override fun cancelAllFor(medicationId: Long) {
         cancelReminder(medicationId)
         notifier.cancel(medicationId)
         alarmManager.cancel(snoozePendingIntent(medicationId, clock.instant()))

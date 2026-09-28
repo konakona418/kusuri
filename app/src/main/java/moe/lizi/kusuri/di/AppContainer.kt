@@ -26,6 +26,7 @@ import moe.lizi.kusuri.domain.DoseRecordRepository
 import moe.lizi.kusuri.domain.LogEntryRepository
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.RecordDoseUseCase
+import moe.lizi.kusuri.domain.WipeAllDataUseCase
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 
 /** 手动依赖容器:单模块小应用不引入 Hilt(docs/plan.md §8)。 */
@@ -71,6 +72,10 @@ class AppContainer(context: Context) {
 
     val recordDose: RecordDoseUseCase by lazy {
         RecordDoseUseCase(medicationRepository, doseRecordRepository, alarmScheduler, checkLowStock)
+    }
+
+    val wipeAllData: WipeAllDataUseCase by lazy {
+        WipeAllDataUseCase(medicationRepository, alarmScheduler, backupService)
     }
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

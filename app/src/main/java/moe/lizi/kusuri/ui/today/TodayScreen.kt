@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
@@ -296,8 +298,16 @@ private fun DoseRow(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.width(56.dp),
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(item.medication.name, style = MaterialTheme.typography.titleSmall)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = item.medication.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         text = stringResource(
                             R.string.detail_dose,
@@ -309,28 +319,25 @@ private fun DoseRow(
                     )
                 }
             }
-            when (val status = item.status) {
-                DoseStatus.Pending -> Row {
-                    TextButton(onClick = onTaken) { Text(stringResource(R.string.action_taken)) }
-                    TextButton(onClick = onSkip) { Text(stringResource(R.string.action_skip)) }
-                }
+            // 统一的操作行:状态文字靠左(与时间左端对齐),所有操作一律靠右。
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                DoseStatusText(item.status)
+                Spacer(Modifier.weight(1f))
+                when (item.status) {
+                    DoseStatus.Pending, DoseStatus.Overdue -> {
+                        TextButton(onClick = onTaken) { Text(stringResource(R.string.action_taken)) }
+                        TextButton(onClick = onSkip) { Text(stringResource(R.string.action_skip)) }
+                    }
 
-                DoseStatus.Overdue -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    DoseStatusText(status, modifier = Modifier.weight(1f))
-                    TextButton(onClick = onTaken) { Text(stringResource(R.string.action_taken)) }
-                    TextButton(onClick = onSkip) { Text(stringResource(R.string.action_skip)) }
-                }
+                    DoseStatus.Missed, DoseStatus.Untracked -> {
+                        TextButton(onClick = onBackfill) { Text(stringResource(R.string.action_backfill)) }
+                    }
 
-                is DoseStatus.Taken, DoseStatus.Skipped -> DoseStatusText(status)
-
-                DoseStatus.Missed -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    DoseStatusText(status, modifier = Modifier.weight(1f))
-                    TextButton(onClick = onBackfill) { Text(stringResource(R.string.action_backfill)) }
-                }
-
-                DoseStatus.Untracked -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    DoseStatusText(status, modifier = Modifier.weight(1f))
-                    TextButton(onClick = onBackfill) { Text(stringResource(R.string.action_backfill)) }
+                    else -> Unit
                 }
             }
         }

@@ -211,6 +211,10 @@ private class FakeReminderControl : DoseReminderControl {
     override fun cancelDose(medicationId: Long) {
         cancelled += medicationId
     }
+
+    override fun cancelAllFor(medicationId: Long) {
+        cancelled += medicationId
+    }
 }
 
 private class FakeLowStockControl : LowStockAlertControl {

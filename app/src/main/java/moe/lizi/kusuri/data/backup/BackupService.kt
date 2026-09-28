@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter
 import moe.lizi.kusuri.data.db.KusuriDatabase
 import moe.lizi.kusuri.data.db.LogEntryEntity
 import moe.lizi.kusuri.data.db.MedicationEntity
+import moe.lizi.kusuri.domain.DataWiper
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.LogEntryType
@@ -32,7 +33,7 @@ data class CsvLabels(
 )
 
 /**
- * 导入导出的落地:
+ * 导入导出的落地与数据清空:
  * - JSON 为全量备份/恢复(换机),含日志;
  * - CSV 为审阅用文件(给医生看),按时间区间,分"服药记录"与"症状与随笔"两段。
  * 通过 SAF 读写,全程无需网络(docs/plan.md §2)。
@@ -41,7 +42,17 @@ class BackupService(
     private val context: Context,
     private val db: KusuriDatabase,
     private val clock: Clock,
-) {
+) : DataWiper {
+
+    override suspend fun wipeAll() {
+        db.withTransaction {
+            db.doseRecordDao().deleteAll()
+            db.logEntryDao().deleteAll()
+            db.medicationDao().deleteAllStockEvents()
+            db.medicationDao().deleteAllTimes()
+            db.medicationDao().deleteAll()
+        }
+    }
 
     suspend fun exportJson(): String {
         val payload = BackupPayload(

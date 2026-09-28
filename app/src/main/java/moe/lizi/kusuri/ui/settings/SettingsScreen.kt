@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -59,6 +60,7 @@ fun SettingsScreen(
     var showCsvRangeDialog by remember { mutableStateOf(false) }
     var pendingCsvRange by remember { mutableStateOf<CsvRange?>(null) }
     var showWizard by remember { mutableStateOf(false) }
+    var wipeStep by remember { mutableStateOf(0) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -201,6 +203,20 @@ fun SettingsScreen(
             text = stringResource(R.string.settings_about_body),
             style = MaterialTheme.typography.bodyMedium,
         )
+
+        SectionTitle(stringResource(R.string.settings_section_danger))
+        Text(
+            text = stringResource(R.string.settings_delete_all_data_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedButton(
+            onClick = { wipeStep = 1 },
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.settings_delete_all_data))
+        }
     }
 
     if (showGraceDialog) {
@@ -229,6 +245,51 @@ fun SettingsScreen(
         OnboardingDialog(
             onDone = { showWizard = false },
             onDismissRequest = { showWizard = false },
+        )
+    }
+
+    // 删除全部数据:两步确认,第二步写明不可恢复。
+    if (wipeStep == 1) {
+        AlertDialog(
+            onDismissRequest = { wipeStep = 0 },
+            title = { Text(stringResource(R.string.wipe_confirm_title)) },
+            text = { Text(stringResource(R.string.wipe_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = { wipeStep = 2 }) {
+                    Text(stringResource(R.string.wipe_confirm_continue))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { wipeStep = 0 }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+
+    if (wipeStep == 2) {
+        AlertDialog(
+            onDismissRequest = { wipeStep = 0 },
+            title = { Text(stringResource(R.string.wipe_confirm_final_title)) },
+            text = { Text(stringResource(R.string.wipe_confirm_final_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        wipeStep = 0
+                        viewModel.deleteAllData()
+                    },
+                ) {
+                    Text(
+                        text = stringResource(R.string.wipe_confirm_final_action),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { wipeStep = 0 }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
         )
     }
 }
@@ -350,5 +411,6 @@ private fun backupStatusText(status: BackupStatus?): String? = when (status) {
     BackupStatus.CsvExported -> stringResource(R.string.backup_csv_exported)
     BackupStatus.JsonExported -> stringResource(R.string.backup_json_exported)
     is BackupStatus.Imported -> stringResource(R.string.backup_imported, status.medications)
+    BackupStatus.Wiped -> stringResource(R.string.wipe_done)
     BackupStatus.Failed -> stringResource(R.string.backup_failed_generic)
 }

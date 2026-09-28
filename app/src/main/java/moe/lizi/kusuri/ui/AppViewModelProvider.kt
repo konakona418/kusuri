@@ -66,6 +66,7 @@ object AppViewModelProvider {
             SettingsViewModel(
                 settings = container.settingsRepository,
                 backupService = container.backupService,
+                wipeAllData = container.wipeAllData,
                 clock = container.clock,
             )
         }
