@@ -1,14 +1,12 @@
 package moe.lizi.kusuri.ui.log
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -40,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -53,6 +49,17 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.round
 import moe.lizi.kusuri.R
+import moe.lizi.kusuri.ui.AppViewModelProvider
+import moe.lizi.kusuri.ui.components.CardAction
+import moe.lizi.kusuri.ui.components.KusuriDatePickerDialog
+import moe.lizi.kusuri.ui.components.KusuriTimePickerDialog
+import moe.lizi.kusuri.ui.components.LongPressDeleteLabel
+import moe.lizi.kusuri.ui.components.SettingRow
+import moe.lizi.kusuri.ui.components.TimelineCard
+import moe.lizi.kusuri.ui.components.TimelineTitle
+import moe.lizi.kusuri.ui.components.dayLabel
+import moe.lizi.kusuri.ui.components.longPressDeleteRecordLabel
+import moe.lizi.kusuri.ui.components.severityDots
 import moe.lizi.kusuri.domain.log.LogEntryErrors
 import moe.lizi.kusuri.domain.log.LogEntryFormState
 import moe.lizi.kusuri.domain.log.LogFormError
@@ -63,14 +70,6 @@ import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatDate
 import moe.lizi.kusuri.domain.util.formatTime
-import moe.lizi.kusuri.ui.AppViewModelProvider
-import moe.lizi.kusuri.ui.components.KusuriDatePickerDialog
-import moe.lizi.kusuri.ui.components.KusuriTimePickerDialog
-import moe.lizi.kusuri.ui.components.LongPressDeleteLabel
-import moe.lizi.kusuri.ui.components.SettingRow
-import moe.lizi.kusuri.ui.components.dayLabel
-import moe.lizi.kusuri.ui.components.longPressDeleteRecordLabel
-import moe.lizi.kusuri.ui.components.severityDots
 
 @Composable
 fun LogScreen(
@@ -167,76 +166,56 @@ private fun LogEntryCard(
     onTrend: (() -> Unit)?,
     zone: ZoneId,
 ) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = formatTime(entry.at.atZone(zone).toLocalTime()),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.width(56.dp),
-            )
-            val muted = MaterialTheme.colorScheme.onSurfaceVariant
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                // 标题行:症状名 / 随笔正文(都完整显示),右侧是各自的标记。
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = when (entry.type) {
-                            LogEntryType.SYMPTOM -> entry.symptom.orEmpty()
-                            LogEntryType.NOTE -> entry.note.orEmpty()
-                        },
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    when (entry.type) {
-                        LogEntryType.SYMPTOM -> entry.severity?.let { severity ->
-                            Text(
-                                text = severityDots(severity),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-
-                        LogEntryType.NOTE -> Text(
-                            text = stringResource(R.string.log_type_note),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = muted,
-                        )
-                    }
-                }
-                if (entry.type == LogEntryType.SYMPTOM) {
-                    entry.note?.let { note ->
+    TimelineCard(time = formatTime(entry.at.atZone(zone).toLocalTime()), onClick = onClick) {
+        val muted = MaterialTheme.colorScheme.onSurfaceVariant
+        // 标题行:症状名 / 随笔正文(都完整显示),右侧是各自的标记。
+        TimelineTitle(
+            title = { modifier ->
+                Text(
+                    text = when (entry.type) {
+                        LogEntryType.SYMPTOM -> entry.symptom.orEmpty()
+                        LogEntryType.NOTE -> entry.note.orEmpty()
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = modifier,
+                )
+            },
+            trailing = {
+                when (entry.type) {
+                    LogEntryType.SYMPTOM -> entry.severity?.let { severity ->
                         Text(
-                            text = note,
+                            text = severityDots(severity),
                             style = MaterialTheme.typography.bodySmall,
-                            color = muted,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
-                }
-                medicationName?.let { name ->
-                    Text(
-                        text = stringResource(R.string.log_linked_to, name),
-                        style = MaterialTheme.typography.bodySmall,
+
+                    LogEntryType.NOTE -> Text(
+                        text = stringResource(R.string.log_type_note),
+                        style = MaterialTheme.typography.labelSmall,
                         color = muted,
                     )
                 }
-                if (onTrend != null) {
-                    Text(
-                        text = stringResource(R.string.log_trend),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.small)
-                            .clickable(onClick = onTrend)
-                            .padding(end = 12.dp, top = 8.dp, bottom = 8.dp),
-                    )
-                }
+            },
+        )
+        if (entry.type == LogEntryType.SYMPTOM) {
+            entry.note?.let { note ->
+                Text(
+                    text = note,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = muted,
+                )
             }
+        }
+        medicationName?.let { name ->
+            Text(
+                text = stringResource(R.string.log_linked_to, name),
+                style = MaterialTheme.typography.bodySmall,
+                color = muted,
+            )
+        }
+        if (onTrend != null) {
+            CardAction(text = stringResource(R.string.log_trend), onClick = onTrend)
         }
     }
 }

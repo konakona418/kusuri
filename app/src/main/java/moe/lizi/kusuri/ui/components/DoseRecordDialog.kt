@@ -78,7 +78,11 @@ fun DoseRecordDialog(
                 )
                 if (onDelete != null) {
                     LongPressDeleteLabel(
-                        text = longPressDeleteRecordLabel(),
+                        text = if (initialAction == DoseAction.TAKEN) {
+                            longPressCancelTakenLabel()
+                        } else {
+                            longPressDeleteRecordLabel()
+                        },
                         onLongPress = onDelete,
                     )
                 }

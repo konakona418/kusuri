@@ -7,17 +7,14 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,13 +36,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -55,6 +49,14 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import moe.lizi.kusuri.R
+import moe.lizi.kusuri.ui.AppViewModelProvider
+import moe.lizi.kusuri.ui.components.CardAction
+import moe.lizi.kusuri.ui.components.DoseRecordDialog
+import moe.lizi.kusuri.ui.components.DoseStatusText
+import moe.lizi.kusuri.ui.components.MedicationTitle
+import moe.lizi.kusuri.ui.components.TimelineCard
+import moe.lizi.kusuri.ui.components.TimelineTitle
+import moe.lizi.kusuri.ui.medications.formatMinuteSpan
 import moe.lizi.kusuri.alarm.ExactAlarmPermissions
 import moe.lizi.kusuri.alarm.ReliabilityChecks
 import moe.lizi.kusuri.domain.model.DoseAction
@@ -62,11 +64,6 @@ import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
-import moe.lizi.kusuri.ui.AppViewModelProvider
-import moe.lizi.kusuri.ui.components.DoseRecordDialog
-import moe.lizi.kusuri.ui.components.DoseStatusText
-import moe.lizi.kusuri.ui.components.MedicationTitle
-import moe.lizi.kusuri.ui.medications.formatMinuteSpan
 
 @Composable
 fun TodayScreen(
@@ -290,73 +287,37 @@ private fun DoseRow(
     val zone = ZoneId.systemDefault()
     val time = formatTime(item.scheduledAt.atZone(zone).toLocalTime())
 
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = time,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.width(56.dp),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                val muted = MaterialTheme.colorScheme.onSurfaceVariant
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    MedicationTitle(
-                        name = item.medication.name,
-                        doseLabel = stringResource(
-                            R.string.list_dose,
-                            formatAmount(item.medication.defaultDose),
-                            item.medication.unit,
-                        ),
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    DoseStatusText(item.status)
-                }
-                // 操作:首项左端与药名严格对齐(自绘文字操作,不用 TextButton 的内边距)。
-                when (item.status) {
-                    DoseStatus.Pending, DoseStatus.Overdue -> Row {
-                        RowAction(text = stringResource(R.string.action_taken), onClick = onTaken)
-                        RowAction(
-                            text = stringResource(R.string.action_skip),
-                            onClick = onSkip,
-                            indent = true,
-                        )
-                    }
-
-                    DoseStatus.Missed, DoseStatus.Untracked ->
-                        RowAction(text = stringResource(R.string.action_backfill), onClick = onBackfill)
-
-                    else -> Unit
-                }
+    TimelineCard(time = time, onClick = onClick) {
+        TimelineTitle(
+            title = { modifier ->
+                MedicationTitle(
+                    name = item.medication.name,
+                    doseLabel = stringResource(
+                        R.string.list_dose,
+                        formatAmount(item.medication.defaultDose),
+                        item.medication.unit,
+                    ),
+                    modifier = modifier,
+                )
+            },
+            trailing = { DoseStatusText(item.status) },
+        )
+        when (item.status) {
+            DoseStatus.Pending, DoseStatus.Overdue -> Row {
+                CardAction(text = stringResource(R.string.action_taken), onClick = onTaken)
+                CardAction(
+                    text = stringResource(R.string.action_skip),
+                    onClick = onSkip,
+                    indent = true,
+                )
             }
+
+            DoseStatus.Missed, DoseStatus.Untracked ->
+                CardAction(text = stringResource(R.string.action_backfill), onClick = onBackfill)
+
+            else -> Unit
         }
     }
-}
-
-/** 卡片内的文字操作:首项无左内边距,因此左端与药名对齐。 */
-@Composable
-private fun RowAction(text: String, onClick: () -> Unit, indent: Boolean = false) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
-            .padding(
-                start = if (indent) 12.dp else 0.dp,
-                end = 12.dp,
-                top = 8.dp,
-                bottom = 8.dp,
-            ),
-    )
 }
 
 @Composable

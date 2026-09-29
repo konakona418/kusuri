@@ -6,6 +6,9 @@ import java.time.Instant
 /** 全局宽限窗口:计划时间后多久仍未处理即判为错过。可配置化留待 M5。 */
 val DOSE_GRACE_PERIOD: Duration = Duration.ofHours(2)
 
+/** 状态的"种类":不含实际时间这类细节,用于比较与折叠行的汇总。 */
+enum class DoseStatusKind { PENDING, OVERDUE, TAKEN, SKIPPED, MISSED, UNTRACKED }
+
 sealed interface DoseStatus {
     /** 计划时间未到。 */
     data object Pending : DoseStatus
@@ -41,3 +44,13 @@ fun doseStatus(
     record.action == DoseAction.TAKEN -> DoseStatus.Taken(record.actualAt, record.source)
     else -> DoseStatus.Skipped
 }
+
+val DoseStatus.kind: DoseStatusKind
+    get() = when (this) {
+        DoseStatus.Pending -> DoseStatusKind.PENDING
+        DoseStatus.Overdue -> DoseStatusKind.OVERDUE
+        is DoseStatus.Taken -> DoseStatusKind.TAKEN
+        DoseStatus.Skipped -> DoseStatusKind.SKIPPED
+        DoseStatus.Missed -> DoseStatusKind.MISSED
+        DoseStatus.Untracked -> DoseStatusKind.UNTRACKED
+    }

@@ -41,6 +41,7 @@
     <string name="status_overdue">到时间了</string>
     <string name="status_pending">待服用</string>
     <string name="status_taken_at">已服用 %1$s</string>
+    <string name="status_taken">已服用</string>
     <string name="status_skipped">已跳过</string>
     <string name="status_missed">已错过</string>
     <string name="status_untracked">未追踪</string>
@@ -155,6 +156,7 @@
     <string name="settings_delete_all_data">删除全部数据</string>
     <string name="settings_delete_all_data_long_press">长按删除全部数据</string>
     <string name="delete_long_press">长按删除记录</string>
+    <string name="delete_long_press_taken">长按取消服用</string>
     <string name="settings_delete_all_data_description">删除全部药物、记录、库存与日志。设置会保留。</string>
     <string name="wipe_confirm_title">删除全部数据？</string>
     <string name="wipe_confirm_body">药物、记录、库存与日志都会删除。建议先导出完整备份。</string>
@@ -370,6 +372,10 @@
     <string name="lan_export_error_bad_response">应答看不懂。对面可能不是接收脚本。</string>
     <string name="lan_export_error_integrity">落盘内容与发送的不一致，请重发。</string>
     <string name="lan_export_error_local">本地导出失败：%1$s</string>
+
+    <string name="history_group_count">%1$d 味</string>
+    <string name="cd_history_group_expand">展开这几味药</string>
+    <string name="cd_history_group_collapse">折叠这几味药</string>
 
     <!-- 无障碍描述 -->
     <string name="cd_add_medication">添加药物</string>

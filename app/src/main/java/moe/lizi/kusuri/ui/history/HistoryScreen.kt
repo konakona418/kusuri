@@ -5,45 +5,56 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.domain.history.AdherenceSummary
 import moe.lizi.kusuri.domain.history.HistoryDay
 import moe.lizi.kusuri.domain.history.HistoryDose
+import moe.lizi.kusuri.domain.history.HistoryDoseGroup
+import moe.lizi.kusuri.domain.history.groupDosesByScheduledTime
+import moe.lizi.kusuri.domain.history.sharedStatusKind
 import moe.lizi.kusuri.domain.model.DoseAction
+import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.model.LogEntry
 import moe.lizi.kusuri.domain.model.LogEntryType
 import moe.lizi.kusuri.domain.util.formatAmount
 import moe.lizi.kusuri.domain.util.formatTime
 import moe.lizi.kusuri.ui.AppViewModelProvider
 import moe.lizi.kusuri.ui.components.DoseRecordDialog
+import moe.lizi.kusuri.ui.components.DoseStatusKindText
 import moe.lizi.kusuri.ui.components.DoseStatusText
 import moe.lizi.kusuri.ui.components.MedicationTitle
+import moe.lizi.kusuri.ui.components.TimelineCard
+import moe.lizi.kusuri.ui.components.TimelineTitle
 import moe.lizi.kusuri.ui.components.dayLabel
 import moe.lizi.kusuri.ui.components.severityDots
 
@@ -53,6 +64,8 @@ fun HistoryScreen(
 ) {
     val timeline by viewModel.timeline.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<HistoryDose?>(null) }
+    // 折叠组的展开状态放在页面层:列表项滚出屏幕被回收后回来,不会自己折回去。
+    val expandedGroups = remember { mutableStateMapOf<Long, Boolean>() }
     val zone = ZoneId.systemDefault()
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -95,6 +108,16 @@ fun HistoryScreen(
                                 onClick = { editing = row.dose },
                             )
 
+                            is TimelineRow.DoseGroup -> HistoryDoseGroupRow(
+                                group = row.group,
+                                expanded = expandedGroups[row.group.scheduledAt.epochSecond] == true,
+                                onToggle = {
+                                    val key = row.group.scheduledAt.epochSecond
+                                    expandedGroups[key] = expandedGroups[key] != true
+                                },
+                                onOpen = { editing = it },
+                            )
+
                             is TimelineRow.Log -> HistoryLogRow(
                                 entry = row.entry,
                                 medicationName = row.entry.medicationId?.let { timeline.medicationNames[it] },
@@ -108,30 +131,34 @@ fun HistoryScreen(
     }
 
     editing?.let { dose ->
+        val record = dose.record
+        val isPast = dose.status == DoseStatus.Missed || dose.status == DoseStatus.Untracked
         DoseRecordDialog(
             title = stringResource(
                 R.string.record_dialog_title,
                 dose.medication.name,
                 formatTime(dose.scheduledAt.atZone(zone).toLocalTime()),
             ),
-            confirmLabel = if (dose.record == null) {
-                stringResource(R.string.action_backfill)
-            } else {
-                stringResource(R.string.action_save)
+            confirmLabel = when {
+                record != null -> stringResource(R.string.action_save)
+                isPast -> stringResource(R.string.action_backfill)
+                else -> stringResource(R.string.action_save)
             },
-            initialActualAt = dose.record?.actualAt ?: dose.scheduledAt,
-            initialAction = dose.record?.action ?: DoseAction.TAKEN,
-            showActionChoice = dose.record != null,
+            initialActualAt = record?.actualAt ?: dose.scheduledAt,
+            initialAction = record?.action ?: DoseAction.TAKEN,
+            // 按状态给动作(与今日页一致):未到点/到点未处理 → 已服用 或 跳过;
+            // 已超时 → 补记(默认已服用)也能选跳过。有没有记录不再决定动作集合。
+            showActionChoice = true,
             onDismiss = { editing = null },
             onConfirm = { actualAt, action ->
-                if (dose.record == null) {
-                    viewModel.backfill(dose, actualAt)
+                if (record == null) {
+                    viewModel.record(dose, actualAt, action)
                 } else {
                     viewModel.saveRecord(dose, actualAt, action)
                 }
                 editing = null
             },
-            onDelete = dose.record?.let {
+            onDelete = record?.let {
                 {
                     viewModel.deleteRecord(dose)
                     editing = null
@@ -185,85 +212,134 @@ private fun AdherenceFigure(label: String, summary: AdherenceSummary) {
 @Composable
 private fun HistoryDoseRow(dose: HistoryDose, onClick: () -> Unit) {
     val zone = ZoneId.systemDefault()
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    TimelineCard(
+        time = formatTime(dose.scheduledAt.atZone(zone).toLocalTime()),
+        onClick = onClick,
+    ) {
+        TimelineTitle(
+            title = { modifier ->
+                MedicationTitle(
+                    name = dose.medication.name,
+                    doseLabel = stringResource(
+                        R.string.list_dose,
+                        formatAmount(dose.medication.defaultDose),
+                        dose.medication.unit,
+                    ),
+                    modifier = modifier,
+                )
+            },
+            trailing = { DoseStatusText(dose.status) },
+        )
+    }
+}
+
+/**
+ * 同一计划时刻的多味药:默认折起,点一下展开成一行一味。
+ *
+ * 折叠行只在状态一致时显示状态,混合状态退化为数量——避免"一行里三种状态"的歧义。
+ */
+@Composable
+private fun HistoryDoseGroupRow(
+    group: HistoryDoseGroup,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onOpen: (HistoryDose) -> Unit,
+) {
+    val zone = ZoneId.systemDefault()
+    val names = group.doses.joinToString(separator = "、") { it.medication.name }
+    val shared = group.sharedStatusKind()
+    // 展开/折叠用图标,不占文案(状态/数量已经在右侧)。
+    val toggleIcon = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown
+    val toggleDescription = stringResource(
+        if (expanded) R.string.cd_history_group_collapse else R.string.cd_history_group_expand,
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TimelineCard(
+            time = formatTime(group.scheduledAt.atZone(zone).toLocalTime()),
+            onClick = onToggle,
         ) {
-            Text(
-                text = formatTime(dose.scheduledAt.atZone(zone).toLocalTime()),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.width(56.dp),
+            TimelineTitle(
+                title = { modifier ->
+                    Text(
+                        text = names,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = modifier,
+                    )
+                },
+                trailing = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (shared != null) {
+                            DoseStatusKindText(shared)
+                        } else {
+                            Text(
+                                text = stringResource(R.string.history_group_count, group.doses.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            imageVector = toggleIcon,
+                            contentDescription = toggleDescription,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                },
             )
-            val muted = MaterialTheme.colorScheme.onSurfaceVariant
-            MedicationTitle(
-                name = dose.medication.name,
-                doseLabel = stringResource(
-                    R.string.list_dose,
-                    formatAmount(dose.medication.defaultDose),
-                    dose.medication.unit,
-                ),
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(8.dp))
-            DoseStatusText(dose.status)
+        }
+        if (expanded) {
+            group.doses.forEach { dose ->
+                HistoryDoseRow(dose = dose, onClick = { onOpen(dose) })
+            }
         }
     }
 }
 
 @Composable
 private fun HistoryLogRow(entry: LogEntry, medicationName: String?, zone: ZoneId) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    TimelineCard(time = formatTime(entry.at.atZone(zone).toLocalTime())) {
+        val muted = MaterialTheme.colorScheme.onSurfaceVariant
+        TimelineTitle(
+            title = { modifier ->
+                Text(
+                    text = if (entry.type == LogEntryType.SYMPTOM) {
+                        entry.symptom.orEmpty()
+                    } else {
+                        stringResource(R.string.log_type_note)
+                    },
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = modifier,
+                )
+            },
+            trailing = entry.severity?.let { severity ->
+                {
+                    Text(
+                        text = severityDots(severity),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            },
+        )
+        entry.note?.let { note ->
             Text(
-                text = formatTime(entry.at.atZone(zone).toLocalTime()),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.width(56.dp),
+                text = note,
+                style = MaterialTheme.typography.bodySmall,
+                color = muted,
             )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                val muted = MaterialTheme.colorScheme.onSurfaceVariant
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (entry.type == LogEntryType.SYMPTOM) {
-                            entry.symptom.orEmpty()
-                        } else {
-                            stringResource(R.string.log_type_note)
-                        },
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    entry.severity?.let { severity ->
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = severityDots(severity),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-                entry.note?.let { note ->
-                    Text(
-                        text = note,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = muted,
-                    )
-                }
-                medicationName?.let { name ->
-                    Text(
-                        text = stringResource(R.string.log_linked_to, name),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = muted,
-                    )
-                }
-            }
+        }
+        medicationName?.let { name ->
+            Text(
+                text = stringResource(R.string.log_linked_to, name),
+                style = MaterialTheme.typography.bodySmall,
+                color = muted,
+            )
         }
     }
 }
@@ -277,12 +353,21 @@ private sealed interface TimelineRow {
         override val key: String get() = "dose:${dose.medication.id}:${dose.scheduledAt.epochSecond}"
     }
 
+    /** 同一计划时刻的多味药(≥2),折叠成一行。 */
+    data class DoseGroup(val group: HistoryDoseGroup) : TimelineRow {
+        override val at: Instant get() = group.scheduledAt
+        override val key: String get() = "dose-group:${group.scheduledAt.epochSecond}"
+    }
+
     data class Log(val entry: LogEntry) : TimelineRow {
         override val at: Instant get() = entry.at
         override val key: String get() = "log:${entry.id}"
     }
 }
 
-private fun HistoryDay.rows(): List<TimelineRow> =
-    (doses.map { TimelineRow.Dose(it) } + logs.map { TimelineRow.Log(it) })
-        .sortedByDescending { it.at }
+private fun HistoryDay.rows(): List<TimelineRow> {
+    val doseRows = groupDosesByScheduledTime(doses).map { group ->
+        if (group.collapsing) TimelineRow.DoseGroup(group) else TimelineRow.Dose(group.doses.single())
+    }
+    return (doseRows + logs.map { TimelineRow.Log(it) }).sortedByDescending { it.at }
+}

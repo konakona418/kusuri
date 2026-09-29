@@ -25,6 +25,8 @@ import moe.lizi.kusuri.domain.history.HistoryDose
 import moe.lizi.kusuri.domain.history.HistoryTimeline
 import moe.lizi.kusuri.domain.history.buildHistoryTimeline
 import moe.lizi.kusuri.domain.model.DoseAction
+import moe.lizi.kusuri.domain.model.DoseSource
+import moe.lizi.kusuri.domain.model.DoseStatus
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 import moe.lizi.kusuri.domain.util.clockTicks
 
@@ -83,9 +85,14 @@ class HistoryViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryTimeline.Empty)
 
-    fun backfill(dose: HistoryDose, actualAt: Instant) {
+    /** 给没有记录的剂量建一条记录,动作由用户选(未到点/到点未处理/已超时都能记)。 */
+    fun record(dose: HistoryDose, actualAt: Instant, action: DoseAction) {
+        val source = when (dose.status) {
+            DoseStatus.Missed, DoseStatus.Untracked -> DoseSource.BACKFILL
+            else -> DoseSource.IN_APP
+        }
         viewModelScope.launch {
-            recordDose.backfill(dose.medication.id, dose.scheduledAt, actualAt)
+            recordDose.record(dose.medication.id, dose.scheduledAt, action, source, actualAt)
         }
     }
 
