@@ -23,6 +23,7 @@ import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseRecord
 import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.DoseStatus
+import moe.lizi.kusuri.domain.todayOrder
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.model.Schedule
@@ -196,9 +197,9 @@ class TodayViewModel(
                     )
                 }
             }
-        // 未到时间的排在前面(由近到远),已经过去的时间排在后面(由早到晚)。
-        val (upcoming, past) = ordered.partition { it.scheduledAt.isAfter(now) }
-        return upcoming.sortedBy { it.scheduledAt } + past.sortedBy { it.scheduledAt }
+        // 待处理的(未到点 + 到点但还在宽限窗口内)排在前面,已处理/已超时的排在后面;
+        // 两组内都按计划时间由早到晚(docs/plan.md §7、domain/TodayOrder.kt)。
+        return ordered.sortedWith(todayOrder({ it.scheduledAt }, { it.status }))
     }
 
     private companion object {
