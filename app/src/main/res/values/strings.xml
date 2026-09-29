@@ -34,6 +34,7 @@
     <string name="notification_title">该服药了：%1$s</string>
     <string name="notification_text">%1$s %2$s · 计划 %3$s</string>
     <string name="notification_text_with_meal">%1$s · %2$s</string>
+    <string name="notification_group_title">该服药了（%1$d 味）</string>
 
     <!-- 今日 -->
     <string name="today_empty">今天没有需要提醒的药物。</string>

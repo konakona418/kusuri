@@ -1,5 +1,6 @@
 package moe.lizi.kusuri.alarm
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -9,6 +10,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import moe.lizi.kusuri.R
 import moe.lizi.kusuri.data.SettingsRepository
+import moe.lizi.kusuri.domain.model.DoseAlert
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -24,7 +26,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
 /**
- * 提醒等级 ↔ 通知渠道的契约(docs/plan.md §4.1、§14)。
+ * 提醒等级 ↔ 通知渠道、以及同一时刻的折叠(docs/plan.md §4.1、§14)。
  *
  * 渠道的重要性创建后不可改,所以"等级"只能靠"一条渠道一个等级"实现;
  * 而且**只有一个等级**:服药、通用提醒、低库存都走这两条渠道之一。
@@ -118,10 +120,89 @@ class ReminderChannelsTest {
         ).forEach { (level, channelId) ->
             settings.setReminderLevel(level)
 
-            notifier.notify(medication, scheduledAt, scheduledAt)
+            notifier.sync(
+                scheduledAt = scheduledAt,
+                recordedMedicationIds = emptyList(),
+                pending = listOf(DoseAlert(medication, scheduledAt)),
+                now = scheduledAt,
+            )
 
             assertEquals(channelId, shadowOf(manager).allNotifications.last().channelId)
         }
+    }
+
+    @Test
+    fun `doses at the same instant fold into one group that alerts once`() {
+        ReminderChannels.ensure(context)
+        settings.setReminderLevel(ReminderLevel.BANNER)
+
+        notifier.sync(
+            scheduledAt = scheduledAt,
+            recordedMedicationIds = emptyList(),
+            pending = threeDoses(),
+            now = scheduledAt,
+        )
+
+        val posted = shadowOf(manager).allNotifications
+        assertEquals("三味药各一条 + 一条组摘要", 4, posted.size)
+
+        val summary = posted.single { it.isGroupSummary() }
+        val children = posted.filterNot { it.isGroupSummary() }
+        assertEquals(3, children.size)
+        assertTrue("子通知与摘要必须同组", children.all { it.group == summary.group })
+        assertEquals("组摘要列出药名", "二甲双胍、布洛芬、阿司匹林", summary.extras.getString(Notification.EXTRA_TEXT))
+        assertTrue(
+            "组内只响一次:响声交给摘要",
+            summary.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0,
+        )
+        assertTrue(
+            "子通知本身不该响",
+            children.all { it.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0 },
+        )
+    }
+
+    @Test
+    fun `when only one dose is left it is posted on its own and the summary goes away`() {
+        ReminderChannels.ensure(context)
+        settings.setReminderLevel(ReminderLevel.BANNER)
+        notifier.sync(
+            scheduledAt = scheduledAt,
+            recordedMedicationIds = emptyList(),
+            pending = threeDoses(),
+            now = scheduledAt,
+        )
+
+        notifier.sync(
+            scheduledAt = scheduledAt,
+            recordedMedicationIds = listOf(1L, 2L),
+            pending = listOf(DoseAlert(medication.copy(id = 3L, name = "阿司匹林"), scheduledAt)),
+            now = scheduledAt,
+        )
+
+        val posted = shadowOf(manager).allNotifications
+        assertEquals("已处理的两条与摘要都被撤下,只剩那一味", 1, posted.size)
+        assertTrue(
+            "标题里是剩下的那一味",
+            posted.single().extras.getString(Notification.EXTRA_TITLE).orEmpty().contains("阿司匹林"),
+        )
+        assertFalse(posted.single().isGroupSummary())
+        assertNull(posted.single().group)
+    }
+
+    @Test
+    fun `nothing is posted before the planned time`() {
+        ReminderChannels.ensure(context)
+        settings.setReminderLevel(ReminderLevel.BANNER)
+
+        // 在 App 里提前记录会走到这里:那一刻还没到,不该把提醒挂出来。
+        notifier.sync(
+            scheduledAt = scheduledAt,
+            recordedMedicationIds = emptyList(),
+            pending = threeDoses(),
+            now = scheduledAt.minusSeconds(600),
+        )
+
+        assertTrue(shadowOf(manager).allNotifications.isEmpty())
     }
 
     @Test
@@ -161,6 +242,15 @@ class ReminderChannelsTest {
 
         assertTrue(shadowOf(manager).allNotifications.isEmpty())
     }
+
+    private fun threeDoses() = listOf(
+        DoseAlert(medication, scheduledAt),
+        DoseAlert(medication.copy(id = 2L, name = "布洛芬"), scheduledAt),
+        DoseAlert(medication.copy(id = 3L, name = "阿司匹林"), scheduledAt),
+    )
+
+    private fun Notification.isGroupSummary(): Boolean =
+        flags and Notification.FLAG_GROUP_SUMMARY != 0
 
     private fun channel(id: String): NotificationChannel =
         requireNotNull(manager.getNotificationChannel(id)) { "渠道 $id 没建出来" }

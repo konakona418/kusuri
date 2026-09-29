@@ -1,12 +1,15 @@
 package moe.lizi.kusuri.domain
 
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import moe.lizi.kusuri.domain.model.DoseAction
+import moe.lizi.kusuri.domain.model.DoseAlert
 import moe.lizi.kusuri.domain.model.DoseRecord
 import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.MealTag
@@ -14,6 +17,7 @@ import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.model.Schedule
 import moe.lizi.kusuri.domain.model.StockEventType
+import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -22,6 +26,8 @@ import org.junit.Test
 
 class RecordDoseUseCaseTest {
 
+    private val zone = ZoneId.of("Asia/Shanghai")
+    private val clock = Clock.fixed(Instant.parse("2026-09-28T00:30:00Z"), zone)
     private val scheduledAt = Instant.parse("2026-09-28T00:00:00Z")
     private val medication = Medication(
         id = 1L,
@@ -45,11 +51,19 @@ class RecordDoseUseCaseTest {
         reminderControl: FakeReminderControl = FakeReminderControl(),
         lowStockControl: FakeLowStockControl = FakeLowStockControl(),
         medicationRepository: FakeMedicationRepository = FakeMedicationRepository(medication),
+        alerts: FakeDoseAlerts = FakeDoseAlerts(),
     ) = RecordDoseUseCase(
         medicationRepository = medicationRepository,
         doseRecordRepository = records,
         reminderControl = reminderControl,
         checkLowStock = CheckLowStockUseCase(medicationRepository, lowStockControl),
+        syncNotifications = SyncDoseNotificationsUseCase(
+            medicationRepository = medicationRepository,
+            doseRecordRepository = records,
+            engine = ScheduleEngine(clock) { zone },
+            alerts = alerts,
+        ),
+        clock = clock,
     )
 
     @Test
@@ -96,8 +110,7 @@ class RecordDoseUseCaseTest {
     }
 
     @Test
-    fun `recording a dose re-checks low stock`() = runTest {
-        val lowStockControl = FakeLowStockControl()
+    fun `recording a dose re-checks low stock`() = runTest {        val lowStockControl = FakeLowStockControl()
         val useCase = useCase(lowStockControl = lowStockControl)
 
         useCase.record(1L, scheduledAt, DoseAction.TAKEN, DoseSource.IN_APP)
@@ -137,6 +150,17 @@ class RecordDoseUseCaseTest {
 
         assertFalse(useCase.record(99L, scheduledAt, DoseAction.TAKEN, DoseSource.IN_APP))
         assertTrue(records.records.isEmpty())
+    }
+
+    @Test
+    fun `recording rebuilds the notification of that instant`() = runTest {
+        // 同一时刻可能还有别的药:记录一条之后必须重建那一刻的通知(组会缩小)。
+        val alerts = FakeDoseAlerts()
+        val useCase = useCase(alerts = alerts)
+
+        useCase.record(1L, scheduledAt, DoseAction.TAKEN, DoseSource.IN_APP)
+
+        assertEquals(listOf(scheduledAt), alerts.synced)
     }
 }
 
@@ -222,4 +246,25 @@ private class FakeLowStockControl : LowStockAlertControl {
     override fun notifyLowStock(medication: Medication) {
         notified += medication
     }
+}
+
+private class FakeDoseAlerts : DoseAlertControl {
+    val synced = mutableListOf<Instant>()
+    val cancelled = mutableListOf<Long>()
+
+    override fun sync(
+        scheduledAt: Instant,
+        recordedMedicationIds: List<Long>,
+        pending: List<DoseAlert>,
+        now: Instant,
+        alertAgain: Boolean,
+    ) {
+        synced += scheduledAt
+    }
+
+    override fun cancel(medicationId: Long) {
+        cancelled += medicationId
+    }
+
+    override fun cancelGroup(scheduledAt: Instant) = Unit
 }

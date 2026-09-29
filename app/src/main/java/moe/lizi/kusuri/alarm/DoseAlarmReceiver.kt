@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import moe.lizi.kusuri.domain.model.MedicationStatus
 
-/** 到点或"稍后"闹钟:发/重发通知;到点闹钟同时排下一剂。 */
+/** 到点或"稍后"闹钟:重建这个时刻的通知组;到点闹钟同时排下一剂。 */
 class DoseAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -23,12 +23,13 @@ class DoseAlarmReceiver : BroadcastReceiver() {
                 val medication = container.medicationRepository.observeMedication(medicationId).first()
                 if (medication == null || medication.status != MedicationStatus.ACTIVE) return@launch
 
-                val scheduledAt = Instant.ofEpochMilli(scheduledMillis)
-                val recorded = container.doseRecordRepository
-                    .findByScheduled(medicationId, scheduledAt) != null
-                if (!recorded) {
-                    container.doseNotifier.notify(medication, scheduledAt, container.clock.instant())
-                }
+                // 同一计划时刻的多味药折叠成一组:统一走这个入口重建,
+                // 已经记录过的那几味会被自动撤下,剩下的几条仍挂着。
+                container.syncDoseNotifications.sync(
+                    scheduledAt = Instant.ofEpochMilli(scheduledMillis),
+                    now = container.clock.instant(),
+                    alertAgain = intent.action == ReminderActions.ACTION_DOSE_SNOOZE,
+                )
                 if (intent.action == ReminderActions.ACTION_DOSE_REMINDER) {
                     container.alarmScheduler.scheduleNext(medication)
                 }

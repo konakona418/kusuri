@@ -30,6 +30,7 @@ import moe.lizi.kusuri.domain.LogEntryRepository
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.RecordDoseUseCase
 import moe.lizi.kusuri.domain.ReminderRepository
+import moe.lizi.kusuri.domain.SyncDoseNotificationsUseCase
 import moe.lizi.kusuri.domain.WipeAllDataUseCase
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 
@@ -70,6 +71,15 @@ class AppContainer(context: Context) {
 
     val reminderNotifier: ReminderNotifier by lazy { ReminderNotifier(appContext, settingsRepository) }
 
+    val syncDoseNotifications: SyncDoseNotificationsUseCase by lazy {
+        SyncDoseNotificationsUseCase(
+            medicationRepository = medicationRepository,
+            doseRecordRepository = doseRecordRepository,
+            engine = scheduleEngine,
+            alerts = doseNotifier,
+        )
+    }
+
     val alarmScheduler: AlarmReminderScheduler by lazy {
         AlarmReminderScheduler(
             context = appContext,
@@ -91,7 +101,14 @@ class AppContainer(context: Context) {
     }
 
     val recordDose: RecordDoseUseCase by lazy {
-        RecordDoseUseCase(medicationRepository, doseRecordRepository, alarmScheduler, checkLowStock)
+        RecordDoseUseCase(
+            medicationRepository = medicationRepository,
+            doseRecordRepository = doseRecordRepository,
+            reminderControl = alarmScheduler,
+            checkLowStock = checkLowStock,
+            syncNotifications = syncDoseNotifications,
+            clock = clock,
+        )
     }
 
     val wipeAllData: WipeAllDataUseCase by lazy {
