@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,11 +19,14 @@ import kotlinx.coroutines.launch
 import moe.lizi.kusuri.domain.DoseRecordRepository
 import moe.lizi.kusuri.domain.MedicationRepository
 import moe.lizi.kusuri.domain.RecordDoseUseCase
+import moe.lizi.kusuri.domain.ReminderRepository
 import moe.lizi.kusuri.data.SettingsRepository
 import moe.lizi.kusuri.domain.model.DoseAction
 import moe.lizi.kusuri.domain.model.DoseRecord
 import moe.lizi.kusuri.domain.model.DoseSource
 import moe.lizi.kusuri.domain.model.DoseStatus
+import moe.lizi.kusuri.domain.model.Reminder
+import moe.lizi.kusuri.domain.reminder.ReminderSchedule
 import moe.lizi.kusuri.domain.todayOrder
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -45,13 +49,21 @@ data class PrnInfo(
     val takenTodayCount: Int,
 )
 
+/** 今天到期的一条通用提醒(提醒本身在"提醒"标签里管理)。 */
+data class TodayReminder(
+    val reminder: Reminder,
+    val at: Instant,
+)
+
 data class TodayUiState(
     val now: Instant,
     val doses: List<TodayDoseItem>,
     val prnInfos: List<PrnInfo>,
     val lowStockMedications: List<Medication>,
+    val reminders: List<TodayReminder>,
 ) {
-    val isEmpty: Boolean get() = doses.isEmpty() && prnInfos.isEmpty()
+    val isEmpty: Boolean
+        get() = doses.isEmpty() && prnInfos.isEmpty() && reminders.isEmpty()
 
     companion object {
         val Empty = TodayUiState(
@@ -59,6 +71,7 @@ data class TodayUiState(
             doses = emptyList(),
             prnInfos = emptyList(),
             lowStockMedications = emptyList(),
+            reminders = emptyList(),
         )
     }
 }
@@ -73,6 +86,7 @@ data class PrnRecordState(
 class TodayViewModel(
     private val medicationRepository: MedicationRepository,
     private val doseRecordRepository: DoseRecordRepository,
+    private val reminderRepository: ReminderRepository,
     private val settings: SettingsRepository,
     private val engine: ScheduleEngine,
     private val recordDose: RecordDoseUseCase,
@@ -84,19 +98,23 @@ class TodayViewModel(
 
     val uiState: StateFlow<TodayUiState> = combine(
         medicationRepository.observeMedications(),
+        reminderRepository.observeAll(),
         nowFlow,
         settings.gracePeriodHours,
-    ) { medications, now, graceHours -> Triple(medications, now, graceHours) }
-        .flatMapLatest { (medications, now, graceHours) ->
+    ) { medications, reminders, now, graceHours ->
+        TodayInputs(medications, reminders, now, graceHours)
+    }
+        .flatMapLatest { inputs ->
             val today = engine.today()
-            val grace = Duration.ofHours(graceHours.toLong())
+            val grace = Duration.ofHours(inputs.graceHours.toLong())
+            val zone = ZoneId.systemDefault()
             doseRecordRepository
                 .observeRecordsBetween(engine.dayStart(today), engine.dayStart(today.plusDays(1)))
                 .map { records ->
-                    val active = medications.filter { it.status == MedicationStatus.ACTIVE }
+                    val active = inputs.medications.filter { it.status == MedicationStatus.ACTIVE }
                     TodayUiState(
-                        now = now,
-                        doses = buildDoses(active, records, now, grace),
+                        now = inputs.now,
+                        doses = buildDoses(active, records, inputs.now, grace),
                         prnInfos = active
                             .filter { it.schedule is Schedule.Prn }
                             .map { medication ->
@@ -111,10 +129,23 @@ class TodayViewModel(
                         lowStockMedications = active.filter {
                             it.remainingStock <= it.lowStockThreshold
                         },
+                        reminders = inputs.reminders
+                            .mapNotNull { reminder ->
+                                ReminderSchedule.occurrenceOn(reminder, today, zone)
+                                    ?.let { TodayReminder(reminder, it) }
+                            }
+                            .sortedBy { it.at },
                     )
                 }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState.Empty)
+
+    private data class TodayInputs(
+        val medications: List<Medication>,
+        val reminders: List<Reminder>,
+        val now: Instant,
+        val graceHours: Int,
+    )
 
     private val _prnTarget = MutableStateFlow<PrnRecordState?>(null)
     val prnTarget: StateFlow<PrnRecordState?> = _prnTarget.asStateFlow()

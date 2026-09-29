@@ -25,6 +25,8 @@
     <string name="action_taken">已服用</string>
     <string name="action_skip">跳过</string>
     <string name="action_snooze_15">稍后 15 分钟</string>
+    <string name="action_ack">知道了</string>
+    <string name="action_mark_done">标记完成</string>
     <string name="action_grant">开启</string>
     <string name="action_open_settings">去设置</string>
 
@@ -199,8 +201,6 @@
     <string name="detail_threshold">低于 %1$s %2$s 时提醒补药</string>
     <string name="stock_alert_title">库存不足：%1$s</string>
     <string name="stock_alert_text">剩余 %1$s %2$s，记得补货</string>
-    <string name="channel_stock_alerts_name">补药提醒</string>
-    <string name="channel_stock_alerts_description">库存不足时提醒补货</string>
 
     <!-- 餐时标签 -->
     <string name="meal_before">饭前</string>
@@ -286,6 +286,22 @@
     <string name="history_today">今天</string>
     <string name="history_yesterday">昨天</string>
     <string name="history_day_label">%1$d月%2$d日 %3$s</string>
+    <!-- 历史筛选 -->
+    <string name="history_filter">筛选</string>
+    <string name="history_filter_type">类型</string>
+    <string name="history_filter_status">状态</string>
+    <string name="history_filter_medication">药物</string>
+    <string name="history_medication_all">全部药物</string>
+    <string name="history_type_dose">服药</string>
+    <string name="history_status_unhandled">未处理</string>
+    <string name="history_range_7d">近 7 天</string>
+    <string name="history_range_30d">近 30 天</string>
+    <string name="history_range_custom">自定义</string>
+    <string name="history_range_title">时间范围</string>
+    <string name="history_range_start">起始</string>
+    <string name="history_range_end">结束</string>
+    <string name="history_filter_reset">重置</string>
+    <string name="history_filter_empty">没有符合条件的记录。</string>
     <string-array name="weekday_names">
         <item>周一</item>
         <item>周二</item>
@@ -298,6 +314,7 @@
 
     <!-- 提醒等级:只留静默与横幅两档(平台对重要性的定义不允许有意义的中间态) -->
     <string name="settings_reminder_level">提醒等级</string>
+    <string name="settings_reminder_level_hint">应用内所有提醒（服药、日程、补药）共用这一档。</string>
     <string name="reminder_level_silent">静默</string>
     <string name="reminder_level_silent_description">只在通知栏</string>
     <string name="reminder_level_banner">横幅</string>
@@ -308,13 +325,19 @@
     <string name="settings_reminder_test_blocked">系统里通知被关掉了</string>
     <string name="notification_test_title">测试提醒</string>
     <string name="notification_test_text">档位：%1$s</string>
+    <string name="notification_reminder_due_today">今天 %1$s</string>
+    <string name="notification_reminder_due_other">%1$s %2$s</string>
     <string name="action_system_settings">系统设置</string>
     <string name="action_close">关闭</string>
 
-    <string name="channel_dose_silent_name">服药提醒（静默）</string>
-    <string name="channel_dose_silent_description">只在通知栏，不响不震</string>
-    <string name="channel_dose_banner_name">服药提醒（横幅）</string>
-    <string name="channel_dose_banner_description">响铃、震动，顶部弹出</string>
+    <!--
+      统一的提醒渠道:服药、通用提醒、低库存都按全局"提醒等级"选这两条之一。
+      id 沿用旧名(dose_reminders_*),改名会让用户在系统里的微调失效。
+    -->
+    <string name="channel_reminders_silent_name">提醒（静默）</string>
+    <string name="channel_reminders_silent_description">应用内所有提醒；只在通知栏，不响不震</string>
+    <string name="channel_reminders_banner_name">提醒（横幅）</string>
+    <string name="channel_reminders_banner_description">应用内所有提醒；响铃、震动，顶部弹出</string>
 
     <string name="lan_export_sent_sha">sha256 %1$s</string>
 
@@ -373,9 +396,39 @@
     <string name="lan_export_error_integrity">落盘内容与发送的不一致，请重发。</string>
     <string name="lan_export_error_local">本地导出失败：%1$s</string>
 
-    <string name="history_group_count">%1$d 味</string>
     <string name="cd_history_group_expand">展开这几味药</string>
     <string name="cd_history_group_collapse">折叠这几味药</string>
+
+    <!-- 通用提醒:复诊 / 取药 / 复查 / 日常事项 -->
+    <string name="tab_reminders">提醒</string>
+    <string name="title_reminder_new">新建提醒</string>
+    <string name="title_reminder_edit">编辑提醒</string>
+    <string name="reminders_empty">还没有提醒。点右下角加一条。</string>
+    <string name="reminder_section_upcoming">即将到来</string>
+    <string name="reminder_section_overdue">已过期</string>
+    <string name="reminder_section_done">已完成</string>
+    <string name="reminder_status_overdue">已过期</string>
+    <string name="reminder_status_done">已完成</string>
+    <string name="reminder_when">%1$s · %2$s</string>
+    <string name="reminder_today_section">今天的提醒</string>
+    <string name="reminder_field_title">标题</string>
+    <string name="reminder_title_hint">复诊、取药、量血压……</string>
+    <string name="reminder_field_date">日期</string>
+    <string name="reminder_field_time">时间</string>
+    <string name="reminder_field_repeat">重复</string>
+    <string name="reminder_field_note">备注</string>
+    <string name="reminder_note_hint">选填</string>
+    <string name="reminder_field_interval">间隔</string>
+    <string name="reminder_repeat_once">不重复</string>
+    <string name="reminder_repeat_daily">每天</string>
+    <string name="reminder_repeat_weekly">每周</string>
+    <string name="reminder_repeat_monthly">每月</string>
+    <string name="reminder_repeat_custom">自定义</string>
+    <string name="reminder_unit_days">天</string>
+    <string name="reminder_unit_months">月</string>
+    <string name="reminder_repeat_every_days">每 %1$d 天</string>
+    <string name="reminder_repeat_every_months">每 %1$d 月</string>
+    <string name="delete_long_press_reminder">长按删除提醒</string>
 
     <!-- 无障碍描述 -->
     <string name="cd_add_medication">添加药物</string>

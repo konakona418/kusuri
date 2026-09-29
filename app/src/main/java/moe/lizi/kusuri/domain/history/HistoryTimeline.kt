@@ -31,17 +31,7 @@ data class HistoryTimeline(
     val adherence7: AdherenceSummary,
     val adherence30: AdherenceSummary,
     val medicationNames: Map<Long, String>,
-) {
-    companion object {
-        val Empty = HistoryTimeline(
-            today = LocalDate.EPOCH,
-            days = emptyList(),
-            adherence7 = AdherenceSummary(taken = 0, resolved = 0),
-            adherence30 = AdherenceSummary(taken = 0, resolved = 0),
-            medicationNames = emptyMap(),
-        )
-    }
-}
+)
 
 /**
  * 把"药物排程 + 服药记录"投影成历史时间线。
@@ -142,15 +132,22 @@ fun buildHistoryTimeline(
         }
 
     // 遵守率只看计划剂量(含对不上计划的记录);按需记录不属于"应服而未服"。
+    // 窗口可能因为筛选比 30 天更宽,所以两个口径都按日期界定。
     val scheduledDose = { dose: HistoryDose ->
         dose.record?.scheduledAt != null || dose.record == null
     }
+    val windowStart7 = today.minusDays(6)
+    val windowStart30 = today.minusDays(29)
     val last7 = days
-        .filter { !it.date.isBefore(today.minusDays(6)) }
+        .filter { !it.date.isBefore(windowStart7) }
         .flatMap { it.doses }
         .filter(scheduledDose)
         .map { it.status }
-    val last30 = days.flatMap { it.doses }.filter(scheduledDose).map { it.status }
+    val last30 = days
+        .filter { !it.date.isBefore(windowStart30) }
+        .flatMap { it.doses }
+        .filter(scheduledDose)
+        .map { it.status }
 
     return HistoryTimeline(
         today = today,

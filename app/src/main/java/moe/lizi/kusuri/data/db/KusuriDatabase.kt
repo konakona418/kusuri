@@ -14,8 +14,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         StockEventEntity::class,
         DoseRecordEntity::class,
         LogEntryEntity::class,
+        ReminderEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class KusuriDatabase : RoomDatabase() {
@@ -25,6 +26,8 @@ abstract class KusuriDatabase : RoomDatabase() {
     abstract fun doseRecordDao(): DoseRecordDao
 
     abstract fun logEntryDao(): LogEntryDao
+
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         const val NAME = "kusuri.db"
@@ -65,9 +68,26 @@ abstract class KusuriDatabase : RoomDatabase() {
             }
         }
 
+        /** v4:通用提醒(复诊/取药/复查/日常事项)。 */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reminders` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`at` INTEGER NOT NULL, " +
+                        "`repeatKind` TEXT NOT NULL, " +
+                        "`interval` INTEGER NOT NULL, " +
+                        "`note` TEXT, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "`doneAt` INTEGER)",
+                )
+            }
+        }
+
         fun build(context: Context): KusuriDatabase =
             Room.databaseBuilder(context, KusuriDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

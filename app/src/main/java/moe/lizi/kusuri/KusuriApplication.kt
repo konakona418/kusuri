@@ -1,6 +1,7 @@
 package moe.lizi.kusuri
 
 import android.app.Application
+import moe.lizi.kusuri.alarm.ReminderChannels
 import moe.lizi.kusuri.di.AppContainer
 
 class KusuriApplication : Application() {
@@ -10,6 +11,6 @@ class KusuriApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         // 通知渠道必须在任何进程(含接收器唤起)尽早创建。
-        container.doseNotifier.ensureChannel()
+        ReminderChannels.ensure(this)
     }
 }

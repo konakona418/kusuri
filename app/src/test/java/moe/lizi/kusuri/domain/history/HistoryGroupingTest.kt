@@ -12,7 +12,6 @@ import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.model.Schedule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,8 +39,8 @@ class HistoryGroupingTest {
     }
 
     @Test
-    fun `the shared kind is reported only when every dose agrees`() {
-        val same = HistoryDoseGroup(
+    fun `the folded label is the one that needs the most attention`() {
+        val allTaken = HistoryDoseGroup(
             scheduledAt = at9,
             doses = listOf(
                 dose("普萘洛尔", at9, DoseStatus.Taken(at9, DoseSource.IN_APP)),
@@ -49,16 +48,34 @@ class HistoryGroupingTest {
                 dose("丙戊酸钠", at9, DoseStatus.Taken(at9.plusSeconds(600), DoseSource.BACKFILL)),
             ),
         )
-        assertEquals(DoseStatusKind.TAKEN, same.sharedStatusKind())
+        assertEquals(DoseStatusKind.TAKEN, allTaken.attentionStatusKind())
 
-        val mixed = HistoryDoseGroup(
+        val missed = HistoryDoseGroup(
             scheduledAt = at9,
             doses = listOf(
                 dose("普萘洛尔", at9, DoseStatus.Taken(at9, DoseSource.IN_APP)),
                 dose("丙戊酸钠", at9, DoseStatus.Missed),
             ),
         )
-        assertNull("混合状态不冒充统一状态", mixed.sharedStatusKind())
+        assertEquals("漏服不能被藏起来", DoseStatusKind.MISSED, missed.attentionStatusKind())
+
+        val stillPending = HistoryDoseGroup(
+            scheduledAt = at9,
+            doses = listOf(
+                dose("普萘洛尔", at9, DoseStatus.Taken(at9, DoseSource.IN_APP)),
+                dose("丙戊酸钠", at9, DoseStatus.Pending),
+            ),
+        )
+        assertEquals(DoseStatusKind.PENDING, stillPending.attentionStatusKind())
+
+        val skipped = HistoryDoseGroup(
+            scheduledAt = at9,
+            doses = listOf(
+                dose("普萘洛尔", at9, DoseStatus.Pending),
+                dose("丙戊酸钠", at9, DoseStatus.Skipped),
+            ),
+        )
+        assertEquals("还有没服的,就该显示待服用", DoseStatusKind.PENDING, skipped.attentionStatusKind())
     }
 
     private fun dose(name: String, at: Instant, status: DoseStatus) = HistoryDose(

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import moe.lizi.kusuri.data.SettingsRepository
-import moe.lizi.kusuri.alarm.DoseNotifier
+import moe.lizi.kusuri.alarm.ReminderNotifier
 import moe.lizi.kusuri.data.backup.BackupService
 import moe.lizi.kusuri.data.backup.CsvRange
 import moe.lizi.kusuri.data.backup.CsvLabels
@@ -29,7 +29,7 @@ class SettingsViewModel(
     private val settings: SettingsRepository,
     private val backupService: BackupService,
     private val wipeAllData: WipeAllDataUseCase,
-    private val doseNotifier: DoseNotifier,
+    private val reminderNotifier: ReminderNotifier,
     private val clock: Clock,
 ) : ViewModel() {
 
@@ -51,7 +51,7 @@ class SettingsViewModel(
 
     /** 发一条当前等级的测试提醒:当场核对响铃/震动/横幅,不用等真提醒。 */
     fun sendTestReminder() {
-        _testReminderPosted.value = doseNotifier.notifyTest(settings.reminderLevel.value)
+        _testReminderPosted.value = reminderNotifier.notifyTest(settings.reminderLevel.value)
     }
 
     fun consumeTestReminder() {

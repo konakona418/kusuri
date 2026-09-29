@@ -50,3 +50,7 @@ fun longPressDeleteRecordLabel(): String = stringResource(R.string.delete_long_p
 /** 已服用的记录:这个动作的实质是"取消服用",不只是删一条记录。 */
 @Composable
 fun longPressCancelTakenLabel(): String = stringResource(R.string.delete_long_press_taken)
+
+/** 通用提醒:长按删除整条提醒(含它的重复规则)。 */
+@Composable
+fun longPressDeleteReminderLabel(): String = stringResource(R.string.delete_long_press_reminder)

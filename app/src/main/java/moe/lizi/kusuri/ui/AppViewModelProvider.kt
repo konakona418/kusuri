@@ -12,6 +12,7 @@ import moe.lizi.kusuri.ui.medications.MedicationListViewModel
 import moe.lizi.kusuri.ui.history.HistoryViewModel
 import moe.lizi.kusuri.ui.lanexport.LanExportViewModel
 import moe.lizi.kusuri.ui.log.LogViewModel
+import moe.lizi.kusuri.ui.reminders.ReminderViewModel
 import moe.lizi.kusuri.ui.settings.SettingsViewModel
 import moe.lizi.kusuri.ui.today.TodayViewModel
 
@@ -44,6 +45,7 @@ object AppViewModelProvider {
             TodayViewModel(
                 medicationRepository = container.medicationRepository,
                 doseRecordRepository = container.doseRecordRepository,
+                reminderRepository = container.reminderRepository,
                 settings = container.settingsRepository,
                 engine = container.scheduleEngine,
                 recordDose = container.recordDose,
@@ -68,7 +70,7 @@ object AppViewModelProvider {
                 settings = container.settingsRepository,
                 backupService = container.backupService,
                 wipeAllData = container.wipeAllData,
-                doseNotifier = container.doseNotifier,
+                reminderNotifier = container.reminderNotifier,
                 clock = container.clock,
             )
         }
@@ -77,6 +79,14 @@ object AppViewModelProvider {
             LanExportViewModel(
                 backupService = container.backupService,
                 client = container.lanExportClient,
+                clock = container.clock,
+            )
+        }
+        initializer {
+            val container = kusuriApplication().container
+            ReminderViewModel(
+                repository = container.reminderRepository,
+                control = container.alarmScheduler,
                 clock = container.clock,
             )
         }

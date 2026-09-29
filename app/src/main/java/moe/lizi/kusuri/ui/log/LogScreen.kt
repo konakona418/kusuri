@@ -54,6 +54,7 @@ import moe.lizi.kusuri.ui.components.CardAction
 import moe.lizi.kusuri.ui.components.KusuriDatePickerDialog
 import moe.lizi.kusuri.ui.components.KusuriTimePickerDialog
 import moe.lizi.kusuri.ui.components.LongPressDeleteLabel
+import moe.lizi.kusuri.ui.components.MedicationPickerDialog
 import moe.lizi.kusuri.ui.components.SettingRow
 import moe.lizi.kusuri.ui.components.TimelineCard
 import moe.lizi.kusuri.ui.components.TimelineTitle
@@ -386,8 +387,10 @@ private fun LogEditorDialog(
 
     if (showMedicationPicker) {
         MedicationPickerDialog(
-            medications = medications,
+            title = stringResource(R.string.log_link_medication),
+            options = medications.map { it.id to it.name },
             selectedId = form.medicationId,
+            noneLabel = stringResource(R.string.log_link_none),
             onSelect = { selectedId ->
                 onUpdate { it.copy(medicationId = selectedId) }
                 showMedicationPicker = false
@@ -395,45 +398,6 @@ private fun LogEditorDialog(
             onDismiss = { showMedicationPicker = false },
         )
     }
-}
-
-@Composable
-private fun MedicationPickerDialog(
-    medications: List<Medication>,
-    selectedId: Long?,
-    onSelect: (Long?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.log_link_medication)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                TextButton(
-                    onClick = { onSelect(null) },
-                    enabled = selectedId != null,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.log_link_none))
-                }
-                medications.forEach { medication ->
-                    TextButton(
-                        onClick = { onSelect(medication.id) },
-                        enabled = selectedId != medication.id,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(medication.name)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-        },
-    )
 }
 
 @Composable

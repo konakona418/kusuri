@@ -4,6 +4,7 @@ import moe.lizi.kusuri.data.db.DoseRecordEntity
 import moe.lizi.kusuri.data.db.LogEntryEntity
 import moe.lizi.kusuri.data.db.MedicationEntity
 import moe.lizi.kusuri.data.db.MedicationTimeEntity
+import moe.lizi.kusuri.data.db.ReminderEntity
 import moe.lizi.kusuri.data.db.StockEventEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -104,6 +105,28 @@ class BackupJsonTest {
                 note = "今天精神不错",
             ),
         ),
+        reminders = listOf(
+            ReminderEntity(
+                id = 1L,
+                title = "复诊",
+                at = 777L,
+                repeatKind = "ONCE",
+                interval = 1,
+                note = "带上化验单",
+                createdAt = 888L,
+                doneAt = null,
+            ),
+            ReminderEntity(
+                id = 2L,
+                title = "复查肝功",
+                at = 999L,
+                repeatKind = "EVERY_N_MONTHS",
+                interval = 3,
+                note = null,
+                createdAt = 1000L,
+                doneAt = 1111L,
+            ),
+        ),
     )
 
     @Test
@@ -117,7 +140,9 @@ class BackupJsonTest {
 
     @Test
     fun `unknown format version is rejected`() {
-        val json = BackupJson.encode(payload()).replace("\"formatVersion\": 2", "\"formatVersion\": 99")
+        val json = BackupJson
+            .encode(payload())
+            .replace("\"formatVersion\": ${BackupJson.FORMAT_VERSION}", "\"formatVersion\": 99")
 
         assertThrows(IllegalArgumentException::class.java) { BackupJson.decode(json) }
     }
@@ -132,6 +157,17 @@ class BackupJsonTest {
         val payload = BackupJson.decode(legacy)
 
         assertTrue(payload.logEntries.isEmpty())
+        assertTrue(payload.reminders.isEmpty())
         assertTrue(payload.medications.isEmpty())
+    }
+
+    @Test
+    fun `v2 backups without reminders still import`() {
+        val v2 = """
+            {"formatVersion":2,"exportedAt":1,"medications":[],"medicationTimes":[],
+             "stockEvents":[],"doseRecords":[],"logEntries":[]}
+        """.trimIndent()
+
+        assertTrue(BackupJson.decode(v2).reminders.isEmpty())
     }
 }

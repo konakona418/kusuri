@@ -13,6 +13,8 @@ import moe.lizi.kusuri.domain.model.LogEntryType
 import moe.lizi.kusuri.domain.model.MealTag
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
+import moe.lizi.kusuri.domain.model.Reminder
+import moe.lizi.kusuri.domain.model.ReminderRepeatKind
 import moe.lizi.kusuri.domain.model.Schedule
 
 private const val MODE_DAILY_TIMES = "DAILY_TIMES"
@@ -120,4 +122,26 @@ internal fun LogEntry.toEntity(): LogEntryEntity = LogEntryEntity(
     severity = severity,
     medicationId = medicationId,
     note = note,
+)
+
+internal fun ReminderEntity.toDomain(): Reminder = Reminder(
+    id = id,
+    title = title,
+    at = Instant.ofEpochMilli(at),
+    repeatKind = ReminderRepeatKind.valueOf(repeatKind),
+    interval = interval,
+    note = note,
+    createdAt = Instant.ofEpochMilli(createdAt),
+    doneAt = doneAt?.let(Instant::ofEpochMilli),
+)
+
+internal fun Reminder.toEntity(): ReminderEntity = ReminderEntity(
+    id = id,
+    title = title,
+    at = at.toEpochMilli(),
+    repeatKind = repeatKind.name,
+    interval = safeInterval,
+    note = note,
+    createdAt = createdAt.toEpochMilli(),
+    doneAt = doneAt?.toEpochMilli(),
 )

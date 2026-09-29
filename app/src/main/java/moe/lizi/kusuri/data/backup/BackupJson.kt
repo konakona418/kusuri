@@ -4,17 +4,18 @@ import moe.lizi.kusuri.data.db.DoseRecordEntity
 import moe.lizi.kusuri.data.db.LogEntryEntity
 import moe.lizi.kusuri.data.db.MedicationEntity
 import moe.lizi.kusuri.data.db.MedicationTimeEntity
+import moe.lizi.kusuri.data.db.ReminderEntity
 import moe.lizi.kusuri.data.db.StockEventEntity
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
  * 备份的 JSON 编解码。格式版本与 Room schema 解耦:
- * v1(无日志) 与 v2(含日志) 都能导入;导出始终写当前版本。
+ * v1(无日志) / v2(含日志) / v3(含通用提醒) 都能导入;导出始终写当前版本。
  */
 object BackupJson {
 
-    const val FORMAT_VERSION = 2
+    const val FORMAT_VERSION = 3
     private const val MIN_SUPPORTED_VERSION = 1
 
     fun encode(payload: BackupPayload): String {
@@ -27,6 +28,7 @@ object BackupJson {
         root.put("stockEvents", payload.stockEvents.map(::encodeStockEvent).toJsonArray())
         root.put("doseRecords", payload.doseRecords.map(::encodeDoseRecord).toJsonArray())
         root.put("logEntries", payload.logEntries.map(::encodeLogEntry).toJsonArray())
+        root.put("reminders", payload.reminders.map(::encodeReminder).toJsonArray())
         return root.toString(2)
     }
 
@@ -44,8 +46,9 @@ object BackupJson {
             medicationTimes = root.getJSONArray("medicationTimes").mapObjects(::decodeTime),
             stockEvents = root.getJSONArray("stockEvents").mapObjects(::decodeStockEvent),
             doseRecords = root.getJSONArray("doseRecords").mapObjects(::decodeDoseRecord),
-            // v1 备份没有日志段。
+            // v1 备份没有日志段,v2 没有通用提醒段。
             logEntries = root.optJSONArray("logEntries")?.mapObjects(::decodeLogEntry).orEmpty(),
+            reminders = root.optJSONArray("reminders")?.mapObjects(::decodeReminder).orEmpty(),
         )
     }
 
@@ -157,6 +160,28 @@ object BackupJson {
         severity = json.intOrNull("severity"),
         medicationId = json.longOrNull("medicationId"),
         note = json.stringOrNull("note"),
+    )
+
+    private fun encodeReminder(reminder: ReminderEntity) = JSONObject().apply {
+        put("id", reminder.id)
+        put("title", reminder.title)
+        put("at", reminder.at)
+        put("repeatKind", reminder.repeatKind)
+        put("interval", reminder.interval)
+        put("note", reminder.note)
+        put("createdAt", reminder.createdAt)
+        put("doneAt", reminder.doneAt)
+    }
+
+    private fun decodeReminder(json: JSONObject) = ReminderEntity(
+        id = json.getLong("id"),
+        title = json.getString("title"),
+        at = json.getLong("at"),
+        repeatKind = json.getString("repeatKind"),
+        interval = json.getInt("interval"),
+        note = json.stringOrNull("note"),
+        createdAt = json.getLong("createdAt"),
+        doneAt = json.longOrNull("doneAt"),
     )
 
     private fun JSONObject.stringOrNull(name: String): String? =

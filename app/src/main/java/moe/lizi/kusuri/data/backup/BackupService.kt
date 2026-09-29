@@ -48,6 +48,7 @@ class BackupService(
         db.withTransaction {
             db.doseRecordDao().deleteAll()
             db.logEntryDao().deleteAll()
+            db.reminderDao().deleteAll()
             db.medicationDao().deleteAllStockEvents()
             db.medicationDao().deleteAllTimes()
             db.medicationDao().deleteAll()
@@ -63,6 +64,7 @@ class BackupService(
             stockEvents = db.medicationDao().getAllStockEvents(),
             doseRecords = db.doseRecordDao().getAll(),
             logEntries = db.logEntryDao().getAll(),
+            reminders = db.reminderDao().getAll(),
         )
         return BackupJson.encode(payload)
     }
@@ -73,6 +75,7 @@ class BackupService(
         db.withTransaction {
             db.doseRecordDao().deleteAll()
             db.logEntryDao().deleteAll()
+            db.reminderDao().deleteAll()
             db.medicationDao().deleteAllStockEvents()
             db.medicationDao().deleteAllTimes()
             db.medicationDao().deleteAll()
@@ -81,6 +84,7 @@ class BackupService(
             db.medicationDao().insertStockEvents(payload.stockEvents)
             db.doseRecordDao().insertAll(payload.doseRecords)
             db.logEntryDao().insertAll(payload.logEntries)
+            db.reminderDao().insertAll(payload.reminders)
         }
         return payload.medications.size
     }

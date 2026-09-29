@@ -22,8 +22,23 @@ fun groupDosesByScheduledTime(doses: List<HistoryDose>): List<HistoryDoseGroup> 
         .sortedBy { it.key }
         .map { (scheduledAt, group) -> HistoryDoseGroup(scheduledAt, group) }
 
-/** 组内状态种类一致时给出该种类;混合则返回 null(折叠行退化为只显示数量)。 */
-fun HistoryDoseGroup.sharedStatusKind(): DoseStatusKind? {
-    val kinds = doses.map { it.status.kind }.distinct()
-    return kinds.singleOrNull()
+/**
+ * 折叠行右侧只留一个状态词,取"最需要注意"的那一个:
+ * 已错过 > 到时间了 > 待服用 > 已跳过 > 未追踪 > 已服用。
+ *
+ * 刻意不做"一致才显示、混合显示数量":数量词不说明任何事,而漏服不该被藏起来。
+ */
+fun HistoryDoseGroup.attentionStatusKind(): DoseStatusKind {
+    // 组恒非空(由 [groupDosesByScheduledTime] 保证);空组兜底只为防御。
+    val worst = doses.maxByOrNull { it.status.kind.attentionRank() } ?: return DoseStatusKind.PENDING
+    return worst.status.kind
+}
+
+private fun DoseStatusKind.attentionRank(): Int = when (this) {
+    DoseStatusKind.MISSED -> 5
+    DoseStatusKind.OVERDUE -> 4
+    DoseStatusKind.PENDING -> 3
+    DoseStatusKind.SKIPPED -> 2
+    DoseStatusKind.UNTRACKED -> 1
+    DoseStatusKind.TAKEN -> 0
 }

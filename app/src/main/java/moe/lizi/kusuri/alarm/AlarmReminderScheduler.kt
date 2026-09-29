@@ -6,27 +6,39 @@ import android.content.Context
 import android.content.Intent
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.first
 import moe.lizi.kusuri.domain.DoseReminderControl
 import moe.lizi.kusuri.domain.MedicationRepository
+import moe.lizi.kusuri.domain.ReminderControl
+import moe.lizi.kusuri.domain.ReminderRepository
 import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
+import moe.lizi.kusuri.domain.model.Reminder
+import moe.lizi.kusuri.domain.reminder.ReminderSchedule
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 
 /**
- * 每味药只维护"下一个未完成剂量"的闹钟:
- * 触发时发通知并排下一剂;开机/改时间/换时区/药物变更后整体重排。
- * 没有精确闹钟权限时降级为非精确闹钟(可能延迟),由 App 内状态提示。
+ * 闹钟排程:
+ * - 每味药只维护"下一个未完成剂量"的闹钟;触发时发通知并排下一剂。
+ * - 每条通用提醒只维护"下一次"的闹钟(重复规则在领域层算);同样触发后重排。
+ * 开机/改时间/换时区/数据变更后整体重排;没有精确闹钟权限时降级为非精确(可能延迟),由 App 内状态提示。
  */
 class AlarmReminderScheduler(
     private val context: Context,
     private val medicationRepository: MedicationRepository,
+    private val reminderRepository: ReminderRepository,
     private val engine: ScheduleEngine,
     private val notifier: DoseNotifier,
+    private val reminderNotifier: ReminderNotifier,
     private val clock: Clock,
-) : DoseReminderControl {
+) : DoseReminderControl, ReminderControl {
 
     private val alarmManager: AlarmManager = context.getSystemService(AlarmManager::class.java)
+
+    private val zone: ZoneId get() = ZoneId.systemDefault()
+
+    // ---------- 服药提醒 ----------
 
     suspend fun rescheduleAll(): Unit = rescheduleAll(medicationRepository.observeMedications().first())
 
@@ -69,6 +81,45 @@ class AlarmReminderScheduler(
         alarmManager.cancel(snoozePendingIntent(medicationId, clock.instant()))
     }
 
+    // ---------- 通用提醒 ----------
+
+    suspend fun rescheduleAllReminders(): Unit =
+        rescheduleAllReminders(reminderRepository.observeAll().first())
+
+    fun rescheduleAllReminders(reminders: List<Reminder>) {
+        reminders.forEach { reminder ->
+            cancel(reminder.id)
+            scheduleNext(reminder)
+        }
+    }
+
+    override fun scheduleNext(reminder: Reminder) {
+        cancel(reminder.id)
+        val next = ReminderSchedule.nextOccurrence(reminder, clock.instant(), zone) ?: return
+        setAlarm(next.toEpochMilli(), reminderAlarmPendingIntent(reminder.id, next))
+    }
+
+    /** "稍后 15 分钟":对同一次提醒再响一次,不改动任何记录。 */
+    fun scheduleReminderSnooze(reminderId: Long) {
+        setAlarm(
+            triggerAtMillis = clock.millis() + ReminderActions.SNOOZE_MILLIS,
+            pendingIntent = reminderSnoozePendingIntent(reminderId, clock.instant()),
+        )
+    }
+
+    override fun cancel(reminderId: Long) {
+        alarmManager.cancel(reminderAlarmPendingIntent(reminderId, clock.instant()))
+        alarmManager.cancel(reminderSnoozePendingIntent(reminderId, clock.instant()))
+        reminderNotifier.cancel(reminderId)
+    }
+
+    override fun clearNotification(reminderId: Long) {
+        alarmManager.cancel(reminderSnoozePendingIntent(reminderId, clock.instant()))
+        reminderNotifier.cancel(reminderId)
+    }
+
+    // ---------- 基础设施 ----------
+
     private fun cancelReminder(medicationId: Long) {
         alarmManager.cancel(reminderPendingIntent(medicationId, clock.instant()))
     }
@@ -94,6 +145,30 @@ class AlarmReminderScheduler(
             context,
             reminderRequestCode(medicationId),
             snoozeIntent(medicationId, scheduledAt),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun reminderAlarmPendingIntent(reminderId: Long, occurrence: Instant): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            reminderAlarmRequestCode(reminderId),
+            Intent(context, ReminderAlarmReceiver::class.java).apply {
+                action = ReminderActions.ACTION_REMINDER_ALARM
+                putExtra(ReminderExtras.REMINDER_ID, reminderId)
+                putExtra(ReminderExtras.OCCURRENCE_AT, occurrence.toEpochMilli())
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun reminderSnoozePendingIntent(reminderId: Long, occurrence: Instant): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            reminderAlarmRequestCode(reminderId),
+            Intent(context, ReminderAlarmReceiver::class.java).apply {
+                action = ReminderActions.ACTION_REMINDER_SNOOZE
+                putExtra(ReminderExtras.REMINDER_ID, reminderId)
+                putExtra(ReminderExtras.OCCURRENCE_AT, occurrence.toEpochMilli())
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 

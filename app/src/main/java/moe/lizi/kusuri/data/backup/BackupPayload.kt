@@ -4,6 +4,7 @@ import moe.lizi.kusuri.data.db.DoseRecordEntity
 import moe.lizi.kusuri.data.db.LogEntryEntity
 import moe.lizi.kusuri.data.db.MedicationEntity
 import moe.lizi.kusuri.data.db.MedicationTimeEntity
+import moe.lizi.kusuri.data.db.ReminderEntity
 import moe.lizi.kusuri.data.db.StockEventEntity
 
 /** 全量备份的内容,与数据库表一一对应,便于无损往返。 */
@@ -15,4 +16,5 @@ data class BackupPayload(
     val stockEvents: List<StockEventEntity>,
     val doseRecords: List<DoseRecordEntity>,
     val logEntries: List<LogEntryEntity>,
+    val reminders: List<ReminderEntity>,
 )

@@ -22,7 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import moe.lizi.kusuri.R
-import moe.lizi.kusuri.alarm.DoseNotifier
+import moe.lizi.kusuri.alarm.ReminderChannels
 import moe.lizi.kusuri.alarm.ReliabilityChecks
 import moe.lizi.kusuri.alarm.labelRes
 import moe.lizi.kusuri.domain.model.ReminderLevel
@@ -43,7 +43,7 @@ fun ReminderLevelDialog(
 ) {
     val context = LocalContext.current
     val blocked = remember(current) {
-        ReliabilityChecks.reminderChannelBlocked(context, DoseNotifier.channelIdFor(current))
+        ReliabilityChecks.reminderChannelBlocked(context, ReminderChannels.channelIdFor(current))
     }
 
     AlertDialog(
@@ -51,6 +51,11 @@ fun ReminderLevelDialog(
         title = { Text(stringResource(R.string.settings_reminder_level)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_reminder_level_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 ReminderLevel.entries.forEach { level ->
                     val selected = level == current
                     Row(
@@ -113,7 +118,7 @@ fun ReminderLevelDialog(
                 onClick = {
                     ReliabilityChecks.openReminderChannelSettings(
                         context,
-                        DoseNotifier.channelIdFor(current),
+                        ReminderChannels.channelIdFor(current),
                     )
                 },
             ) {

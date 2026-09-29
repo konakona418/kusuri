@@ -68,6 +68,7 @@ import moe.lizi.kusuri.domain.util.formatTime
 @Composable
 fun TodayScreen(
     onOpenMedication: (Long) -> Unit,
+    onOpenReminders: () -> Unit,
     viewModel: TodayViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -141,6 +142,12 @@ fun TodayScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (state.reminders.isNotEmpty()) {
+                    item { SectionHeader(stringResource(R.string.reminder_today_section)) }
+                    items(state.reminders, key = { "today-reminder-${it.reminder.id}" }) { reminder ->
+                        TodayReminderRow(item = reminder, onClick = onOpenReminders)
+                    }
+                }
                 if (state.prnInfos.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.prn_section_title)) }
                     items(state.prnInfos, key = { "prn-${it.medication.id}" }) { info ->
@@ -205,6 +212,30 @@ private fun SectionHeader(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 8.dp),
     )
+}
+
+/** 今天到期的通用提醒:点一下去"提醒"标签里改;动作留到那边做,这里只是让你看见。 */
+@Composable
+private fun TodayReminderRow(item: TodayReminder, onClick: () -> Unit) {
+    val time = formatTime(item.at.atZone(ZoneId.systemDefault()).toLocalTime())
+    TimelineCard(time = time, onClick = onClick) {
+        TimelineTitle(
+            title = { modifier ->
+                Text(
+                    text = item.reminder.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = modifier,
+                )
+            },
+        )
+        item.reminder.note?.let { note ->
+            Text(
+                text = note,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable

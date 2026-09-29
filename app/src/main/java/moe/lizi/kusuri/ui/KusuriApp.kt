@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,6 +41,7 @@ import moe.lizi.kusuri.ui.lanexport.LanExportScreen
 import moe.lizi.kusuri.ui.medications.MedicationDetailScreen
 import moe.lizi.kusuri.ui.medications.MedicationEditScreen
 import moe.lizi.kusuri.ui.medications.MedicationListScreen
+import moe.lizi.kusuri.ui.reminders.ReminderScreen
 import moe.lizi.kusuri.ui.settings.SettingsScreen
 import moe.lizi.kusuri.ui.settings.SettingsViewModel
 import moe.lizi.kusuri.ui.today.TodayScreen
@@ -47,6 +49,7 @@ import moe.lizi.kusuri.ui.today.TodayScreen
 object Routes {
     const val TODAY = "today"
     const val LOG = "log"
+    const val REMINDERS = "reminders"
     const val MEDICATIONS = "medications"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
@@ -69,6 +72,7 @@ private data class TopLevelDestination(
 private val TOP_LEVEL_DESTINATIONS = listOf(
     TopLevelDestination(Routes.TODAY, R.string.tab_today, Icons.Filled.Home),
     TopLevelDestination(Routes.LOG, R.string.tab_log, Icons.Filled.Edit),
+    TopLevelDestination(Routes.REMINDERS, R.string.tab_reminders, Icons.Filled.Notifications),
     TopLevelDestination(Routes.MEDICATIONS, R.string.tab_medications, Icons.Filled.List),
     TopLevelDestination(Routes.HISTORY, R.string.tab_history, Icons.Filled.DateRange),
 )
@@ -115,10 +119,20 @@ fun KusuriApp(navController: NavHostController = rememberNavController()) {
                     onOpenMedication = { medicationId ->
                         navController.navigate(Routes.medicationDetail(medicationId))
                     },
+                    onOpenReminders = {
+                        navController.navigate(Routes.REMINDERS) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                 )
             }
             composable(Routes.LOG) {
                 LogScreen()
+            }
+            composable(Routes.REMINDERS) {
+                ReminderScreen()
             }
             composable(Routes.MEDICATIONS) {
                 MedicationListScreen(
@@ -174,6 +188,7 @@ private fun KusuriTopBar(route: String?, onBack: () -> Unit, onSettings: () -> U
     val title = when (route) {
         Routes.TODAY -> stringResource(R.string.tab_today)
         Routes.LOG -> stringResource(R.string.tab_log)
+        Routes.REMINDERS -> stringResource(R.string.tab_reminders)
         Routes.MEDICATIONS -> stringResource(R.string.tab_medications)
         Routes.HISTORY -> stringResource(R.string.tab_history)
         Routes.SETTINGS -> stringResource(R.string.title_settings)
