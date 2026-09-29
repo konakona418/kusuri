@@ -22,7 +22,7 @@ data class ReliabilityState(
         get() = notificationsEnabled && exactAlarmsAllowed && batteryOptimizationIgnored
 }
 
-/** 三项可靠性状态;每次回到前台重新读取(用户可能刚在系统设置里改过)。 */
+/** 可靠性状态;每次回到前台重新读取(用户可能刚在系统设置里改过)。 */
 @Composable
 fun rememberReliabilityState(): ReliabilityState {
     val context = LocalContext.current

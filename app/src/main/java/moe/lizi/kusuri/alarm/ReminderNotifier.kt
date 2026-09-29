@@ -26,7 +26,7 @@ class ReminderNotifier(
     private val settings: SettingsRepository,
 ) {
 
-    fun notify(reminder: Reminder, occurrence: Instant, now: Instant) {
+    fun notify(reminder: Reminder, occurrence: Instant, now: Instant, alertAgain: Boolean = false) {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
 
@@ -39,6 +39,8 @@ class ReminderNotifier(
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setOngoing(true)
             .setAutoCancel(false)
+            // 同一件事只响一次;补发(重启/巡检时重建)应当是安静的,除非是"稍后"要求再响。
+            .setOnlyAlertOnce(!alertAgain)
             .setSilent(level.isSilent)
             .apply { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) applyLegacyLevel(level) }
             .setContentIntent(contentIntent(notificationId(reminder.id)))

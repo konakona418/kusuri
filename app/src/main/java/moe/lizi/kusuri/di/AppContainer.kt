@@ -2,6 +2,9 @@ package moe.lizi.kusuri.di
 
 import android.content.Context
 import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,6 +35,7 @@ import moe.lizi.kusuri.domain.RecordDoseUseCase
 import moe.lizi.kusuri.domain.ReminderRepository
 import moe.lizi.kusuri.domain.SyncDoseNotificationsUseCase
 import moe.lizi.kusuri.domain.WipeAllDataUseCase
+import moe.lizi.kusuri.domain.reminder.ReminderSchedule
 import moe.lizi.kusuri.domain.schedule.ScheduleEngine
 
 /** 手动依赖容器:单模块小应用不引入 Hilt(docs/plan.md §8)。 */
@@ -118,11 +122,34 @@ class AppContainer(context: Context) {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var reminderSyncStarted = false
 
-    /** 开机/改时间/启动时的巡检:疗程收官、库存告警同步、整体重排闹钟。 */
+    /** 开机/改时间/启动时的巡检:疗程收官、库存告警同步、整体重排闹钟、补发漏掉的提醒。 */
     suspend fun runMaintenance() {
         prepare()
         alarmScheduler.rescheduleAll()
         alarmScheduler.rescheduleAllReminders()
+        catchUpMissed(clock.instant())
+    }
+
+    /**
+     * 闹钟可能被系统吞掉(App 被杀、省电策略、更新后没来得及重排):
+     * 把今天"已经到点、还在宽限窗口内"的剂量、以及最近一小时内本该响过的一次性/重复提醒补上。
+     * 幂等——已经挂着的通知只是原地更新,不会重复响。
+     */
+    private suspend fun catchUpMissed(now: Instant) {
+        syncDoseNotifications.catchUp(
+            now = now,
+            gracePeriod = Duration.ofHours(settingsRepository.gracePeriodHours.value.toLong()),
+        )
+        val zone = ZoneId.systemDefault()
+        val today = now.atZone(zone).toLocalDate()
+        reminderRepository.observeAll().first()
+            .filter { it.doneAt == null }
+            .forEach { reminder ->
+                val occurrence = ReminderSchedule.occurrenceOn(reminder, today, zone) ?: return@forEach
+                val missedRecently = !occurrence.isAfter(now) &&
+                    occurrence.isAfter(now.minus(REMINDER_CATCH_UP_WINDOW))
+                if (missedRecently) reminderNotifier.notify(reminder, occurrence, now)
+            }
     }
 
     /** 只需要执行一次的巡检步骤(App 启动时会接着订阅药物变化,由订阅负责重排)。 */
@@ -133,9 +160,9 @@ class AppContainer(context: Context) {
         }
     }
 
-    /** 每 6 小时一次的巡检:WorkManager 作为"漏排/被杀"的安全网(docs/plan.md §5)。 */
+    /** 每 1 小时一次的巡检:WorkManager 作为"漏排/被杀"的安全网(docs/plan.md §5)。 */
     fun scheduleMaintenance() {
-        val request = PeriodicWorkRequestBuilder<ReminderMaintenanceWorker>(6, TimeUnit.HOURS)
+        val request = PeriodicWorkRequestBuilder<ReminderMaintenanceWorker>(1, TimeUnit.HOURS)
             .build()
         WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
             MAINTENANCE_WORK_NAME,
@@ -149,7 +176,8 @@ class AppContainer(context: Context) {
         if (reminderSyncStarted) return
         reminderSyncStarted = true
         applicationScope.launch {
-            prepare()
+            // 启动即巡检:疗程收官、库存告警、重排闹钟,并把被系统吞掉的提醒补上。
+            runMaintenance()
             launch {
                 medicationRepository.observeMedications().collect { medications ->
                     alarmScheduler.rescheduleAll(medications)
@@ -165,5 +193,8 @@ class AppContainer(context: Context) {
 
     private companion object {
         const val MAINTENANCE_WORK_NAME = "reminder-maintenance"
+
+        /** 补发提醒的时间窗:只补"刚刚过去"的,不把几小时前的事翻出来打扰。 */
+        val REMINDER_CATCH_UP_WINDOW: Duration = Duration.ofHours(1)
     }
 }

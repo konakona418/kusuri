@@ -1,6 +1,8 @@
 package moe.lizi.kusuri.domain
 
+import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.first
 import moe.lizi.kusuri.domain.model.DoseAlert
 import moe.lizi.kusuri.domain.model.MedicationStatus
@@ -45,5 +47,30 @@ class SyncDoseNotificationsUseCase(
             now = now,
             alertAgain = alertAgain,
         )
+    }
+
+    /**
+     * 补发:闹钟可能被系统吞掉(App 被杀、省电策略、更新后没重排),这里把**今天已经到点
+     * 且仍在宽限窗口内**的剂量重新挂上通知——按定义它们正是"到时间了"。
+     *
+     * 幂等:已经挂着的通知只是原地更新(不会重复响),已处理的不会出现。
+     */
+    suspend fun catchUp(
+        now: Instant,
+        gracePeriod: Duration,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): Int {
+        val today = now.atZone(zone).toLocalDate()
+        val medications = medicationRepository.observeMedications().first()
+            .filter { it.status == MedicationStatus.ACTIVE }
+
+        val due = medications
+            .flatMap { medication -> engine.plannedDosesOn(medication, today) }
+            .distinct()
+            .filter { instant -> !instant.isAfter(now) && now.isBefore(instant.plus(gracePeriod)) }
+            .sorted()
+
+        due.forEach { instant -> sync(instant, now) }
+        return due.size
     }
 }

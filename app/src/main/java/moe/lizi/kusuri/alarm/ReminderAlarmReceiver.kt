@@ -26,7 +26,12 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                     .takeIf { it > 0L }
                     ?.let(Instant::ofEpochMilli)
                     ?: now
-                container.reminderNotifier.notify(reminder, occurrence, now)
+                container.reminderNotifier.notify(
+                    reminder = reminder,
+                    occurrence = occurrence,
+                    now = now,
+                    alertAgain = intent.action == ReminderActions.ACTION_REMINDER_SNOOZE,
+                )
 
                 if (intent.action == ReminderActions.ACTION_REMINDER_ALARM) {
                     container.alarmScheduler.scheduleNext(reminder)
