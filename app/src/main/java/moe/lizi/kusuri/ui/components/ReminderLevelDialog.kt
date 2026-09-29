@@ -132,8 +132,6 @@ fun ReminderLevelDialog(
 private fun reminderLevelDescription(level: ReminderLevel): String = stringResource(
     when (level) {
         ReminderLevel.SILENT -> R.string.reminder_level_silent_description
-        ReminderLevel.VIBRATE -> R.string.reminder_level_vibrate_description
-        ReminderLevel.SOUND -> R.string.reminder_level_sound_description
         ReminderLevel.BANNER -> R.string.reminder_level_banner_description
     },
 )

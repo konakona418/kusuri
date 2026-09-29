@@ -12,7 +12,5 @@ import moe.lizi.kusuri.domain.model.ReminderLevel
 @StringRes
 fun ReminderLevel.labelRes(): Int = when (this) {
     ReminderLevel.SILENT -> R.string.reminder_level_silent
-    ReminderLevel.VIBRATE -> R.string.reminder_level_vibrate
-    ReminderLevel.SOUND -> R.string.reminder_level_sound
     ReminderLevel.BANNER -> R.string.reminder_level_banner
 }

@@ -34,7 +34,7 @@ class DoseNotifier(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         // 渠道的重要性创建后不可改(平台约束),所以一个等级一条渠道,发送时按设置选一条。
-        // 静默与只震动同为 IMPORTANCE_LOW,区别只在震动开关。
+        // 只留两个语义无歧义的极端档:静默(LOW,无声无震)与横幅(HIGH,响铃+震动+顶部弹出)。
         createChannel(
             manager,
             SILENT_CHANNEL_ID,
@@ -44,25 +44,6 @@ class DoseNotifier(
         ) {
             enableVibration(false)
             setSound(null, null)
-        }
-        createChannel(
-            manager,
-            VIBRATE_CHANNEL_ID,
-            R.string.channel_dose_vibrate_name,
-            R.string.channel_dose_vibrate_description,
-            NotificationManager.IMPORTANCE_LOW,
-        ) {
-            enableVibration(true)
-            setSound(null, null)
-        }
-        createChannel(
-            manager,
-            SOUND_CHANNEL_ID,
-            R.string.channel_dose_sound_name,
-            R.string.channel_dose_sound_description,
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ) {
-            enableVibration(true)
         }
         createChannel(
             manager,
@@ -80,8 +61,9 @@ class DoseNotifier(
             R.string.channel_stock_alerts_description,
             NotificationManager.IMPORTANCE_DEFAULT,
         )
-        // 旧版那条"用药提醒(响铃)"已被四档取代:留着只会让系统设置里多一条永不触发的渠道。
-        manager.deleteNotificationChannel(LEGACY_ALERT_CHANNEL_ID)
+        // 清掉不再使用的渠道:旧版的"响铃",以及试过又撤掉的"只震动 / 响亮"两档。
+        // 留着只会让系统设置里多出永不触发的项,更让人以为哪里坏了。
+        (RETIRED_CHANNEL_IDS + LEGACY_ALERT_CHANNEL_ID).forEach(manager::deleteNotificationChannel)
     }
 
     private fun createChannel(
@@ -157,17 +139,6 @@ class DoseNotifier(
                 setPriority(NotificationCompat.PRIORITY_LOW)
                 setSound(null)
                 setVibrate(longArrayOf(0L))
-            }
-
-            ReminderLevel.VIBRATE -> {
-                setPriority(NotificationCompat.PRIORITY_LOW)
-                setSound(null)
-                setVibrate(VIBRATION_PATTERN)
-            }
-
-            ReminderLevel.SOUND -> {
-                setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                setVibrate(VIBRATION_PATTERN)
             }
 
             ReminderLevel.BANNER -> {
@@ -278,13 +249,14 @@ class DoseNotifier(
 
     companion object {
         const val SILENT_CHANNEL_ID = "dose_reminders_silent"
-        const val VIBRATE_CHANNEL_ID = "dose_reminders_vibrate"
-        const val SOUND_CHANNEL_ID = "dose_reminders_sound"
         const val BANNER_CHANNEL_ID = "dose_reminders_banner"
         const val STOCK_CHANNEL_ID = "stock_alerts"
 
-        /** 旧版的"响铃"渠道;已被四档取代,只在 [ensureChannel] 里删掉。 */
+        /** 旧版的"响铃"渠道;已被两档取代,只在 [ensureChannel] 里删掉。 */
         private const val LEGACY_ALERT_CHANNEL_ID = "dose_reminders_alert"
+
+        /** 试过又撤掉的两个中间档(只震动 / 响亮):同样只在启动时清掉。 */
+        private val RETIRED_CHANNEL_IDS = listOf("dose_reminders_vibrate", "dose_reminders_sound")
 
         private val VIBRATION_PATTERN = longArrayOf(0L, 300L, 200L, 300L)
         private const val MIN_TIMEOUT_MILLIS = 60_000L
@@ -292,8 +264,6 @@ class DoseNotifier(
         /** 等级 → 渠道(docs/plan.md §4.1);渠道与等级一一对应,不做动态切换。 */
         fun channelIdFor(level: ReminderLevel): String = when (level) {
             ReminderLevel.SILENT -> SILENT_CHANNEL_ID
-            ReminderLevel.VIBRATE -> VIBRATE_CHANNEL_ID
-            ReminderLevel.SOUND -> SOUND_CHANNEL_ID
             ReminderLevel.BANNER -> BANNER_CHANNEL_ID
         }
 

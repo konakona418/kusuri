@@ -13,7 +13,6 @@ import moe.lizi.kusuri.domain.model.Medication
 import moe.lizi.kusuri.domain.model.MedicationStatus
 import moe.lizi.kusuri.domain.model.ReminderLevel
 import moe.lizi.kusuri.domain.model.Schedule
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -28,7 +27,7 @@ import org.robolectric.Shadows.shadowOf
  * 提醒等级 ↔ 通知渠道的契约(docs/plan.md §4.1)。
  *
  * 渠道的重要性创建后不可改,所以"等级"只能靠"一条渠道一个等级"实现;
- * 这一组测试盯住的就是这张映射表,以及发送时确实走了对应渠道。
+ * 这一组测试盯住的就是这张映射表、发送时确实走了对应渠道,以及不再使用的渠道会被清掉。
  */
 @RunWith(RobolectricTestRunner::class)
 class DoseNotifierTest {
@@ -47,28 +46,17 @@ class DoseNotifierTest {
             channel(DoseNotifier.channelIdFor(ReminderLevel.SILENT)).importance,
         )
         assertEquals(
-            NotificationManager.IMPORTANCE_LOW,
-            channel(DoseNotifier.channelIdFor(ReminderLevel.VIBRATE)).importance,
-        )
-        assertEquals(
-            NotificationManager.IMPORTANCE_DEFAULT,
-            channel(DoseNotifier.channelIdFor(ReminderLevel.SOUND)).importance,
-        )
-        assertEquals(
             NotificationManager.IMPORTANCE_HIGH,
             channel(DoseNotifier.channelIdFor(ReminderLevel.BANNER)).importance,
         )
     }
 
     @Test
-    fun `only silent is quiet and only silent stops vibrating`() {
+    fun `only the silent channel is quiet and does not vibrate`() {
         notifier.ensureChannel()
 
         assertNull(channel(DoseNotifier.SILENT_CHANNEL_ID).sound)
-        assertNull(channel(DoseNotifier.VIBRATE_CHANNEL_ID).sound)
         assertFalse(channel(DoseNotifier.SILENT_CHANNEL_ID).shouldVibrate())
-        assertTrue(channel(DoseNotifier.VIBRATE_CHANNEL_ID).shouldVibrate())
-        assertTrue(channel(DoseNotifier.SOUND_CHANNEL_ID).shouldVibrate())
         assertTrue(channel(DoseNotifier.BANNER_CHANNEL_ID).shouldVibrate())
     }
 
@@ -84,20 +72,33 @@ class DoseNotifierTest {
     }
 
     @Test
-    fun `the legacy alert channel is cleaned up`() {
-        manager.createNotificationChannel(
-            NotificationChannel("dose_reminders_alert", "old", NotificationManager.IMPORTANCE_HIGH),
-        )
+    fun `channels we no longer use are cleaned up`() {
+        listOf(
+            "dose_reminders_alert",
+            "dose_reminders_vibrate",
+            "dose_reminders_sound",
+        ).forEach { id ->
+            manager.createNotificationChannel(
+                NotificationChannel(id, "旧渠道", NotificationManager.IMPORTANCE_DEFAULT),
+            )
+        }
 
         notifier.ensureChannel()
 
-        assertNull(manager.getNotificationChannel("dose_reminders_alert"))
+        listOf("dose_reminders_alert", "dose_reminders_vibrate", "dose_reminders_sound").forEach {
+            assertNull("旧渠道 $it 应当被删掉", manager.getNotificationChannel(it))
+        }
+        assertEquals(
+            "只剩用药提醒的两档 + 补药提醒",
+            3,
+            manager.notificationChannels.size,
+        )
     }
 
     @Test
     fun `an existing channel keeps its configuration but picks up the current name`() {
         // 名称与描述创建后可更新;重要性/声音/震动创建后归用户掌控——这条边界必须守住。
-        // 这里只能断言 Robolectric 可靠建模的字段;"应用不去动用户的声响/震动"由更新分支的
+        // 这里只断言 Robolectric 可靠建模的字段;"应用不去动用户的声响/震动"由更新分支的
         // 结构保证(那里不调 enableVibration/setSound),并在真机 dumpsys 上核对过。
         manager.createNotificationChannel(
             NotificationChannel(
@@ -110,7 +111,6 @@ class DoseNotifierTest {
         notifier.ensureChannel()
 
         val channel = channel(DoseNotifier.BANNER_CHANNEL_ID)
-        assertEquals(1, manager.notificationChannels.count { it.id == DoseNotifier.BANNER_CHANNEL_ID })
         assertEquals(
             context.getString(moe.lizi.kusuri.R.string.channel_dose_banner_name),
             channel.name,
@@ -124,16 +124,13 @@ class DoseNotifierTest {
 
         listOf(
             ReminderLevel.SILENT to DoseNotifier.SILENT_CHANNEL_ID,
-            ReminderLevel.VIBRATE to DoseNotifier.VIBRATE_CHANNEL_ID,
-            ReminderLevel.SOUND to DoseNotifier.SOUND_CHANNEL_ID,
             ReminderLevel.BANNER to DoseNotifier.BANNER_CHANNEL_ID,
         ).forEach { (level, channelId) ->
             settings.setReminderLevel(level)
 
             notifier.notify(medication, scheduledAt, scheduledAt)
 
-            val posted = shadowOf(manager).allNotifications.last()
-            assertEquals(channelId, posted.channelId)
+            assertEquals(channelId, shadowOf(manager).allNotifications.last().channelId)
         }
     }
 
@@ -141,13 +138,13 @@ class DoseNotifierTest {
     fun `a test reminder goes to the chosen channel and carries no actions`() {
         notifier.ensureChannel()
 
-        assertTrue(notifier.notifyTest(ReminderLevel.SOUND))
-        assertTrue(notifier.notifyTest(ReminderLevel.SOUND))
+        assertTrue(notifier.notifyTest(ReminderLevel.BANNER))
+        assertTrue(notifier.notifyTest(ReminderLevel.BANNER))
 
         val notifications = shadowOf(manager).allNotifications
         assertEquals("固定 id:连点几次只替换,不堆一屏", 1, notifications.size)
         val posted = notifications.first()
-        assertEquals(DoseNotifier.SOUND_CHANNEL_ID, posted.channelId)
+        assertEquals(DoseNotifier.BANNER_CHANNEL_ID, posted.channelId)
         assertEquals("测试提醒不能带动作,否则会写进真实记录", 0, posted.actions?.size ?: 0)
     }
 

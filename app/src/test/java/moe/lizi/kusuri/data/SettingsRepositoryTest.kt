@@ -44,10 +44,10 @@ class SettingsRepositoryTest {
     fun `the reminder level is persisted in the observed state`() {
         val settings = repository()
 
-        settings.setReminderLevel(ReminderLevel.VIBRATE)
+        settings.setReminderLevel(ReminderLevel.SILENT)
         settings.setOnboardingDone(true)
 
-        assertEquals(ReminderLevel.VIBRATE, repository().reminderLevel.value)
+        assertEquals(ReminderLevel.SILENT, repository().reminderLevel.value)
         assertTrue(repository().onboardingDone.value)
     }
 
@@ -71,6 +71,16 @@ class SettingsRepositoryTest {
             .putBoolean("reminder_sound", false)
             .commit()
 
+        assertEquals(ReminderLevel.BANNER, repository().reminderLevel.value)
+    }
+
+    @Test
+    fun `retired levels fall back to the surviving two`() {
+        // "只震动"与"响亮"试过又撤掉了:不认识的档位要落回可用的一档,而不是崩或缺省。
+        prefs.edit().putString("reminder_level", "VIBRATE").commit()
+        assertEquals(ReminderLevel.SILENT, repository().reminderLevel.value)
+
+        prefs.edit().putString("reminder_level", "SOUND").commit()
         assertEquals(ReminderLevel.BANNER, repository().reminderLevel.value)
     }
 }

@@ -294,14 +294,10 @@
         <item>周日</item>
     </string-array>
 
-    <!-- 提醒等级:对应 Android 通知渠道的重要性,一个等级一条渠道 -->
+    <!-- 提醒等级:只留静默与横幅两档(平台对重要性的定义不允许有意义的中间态) -->
     <string name="settings_reminder_level">提醒等级</string>
     <string name="reminder_level_silent">静默</string>
     <string name="reminder_level_silent_description">只在通知栏</string>
-    <string name="reminder_level_vibrate">只震动</string>
-    <string name="reminder_level_vibrate_description">不响铃</string>
-    <string name="reminder_level_sound">响亮</string>
-    <string name="reminder_level_sound_description">响铃、震动</string>
     <string name="reminder_level_banner">横幅</string>
     <string name="reminder_level_banner_description">响铃、震动、顶部弹出</string>
     <string name="settings_reminder_blocked">这条渠道在系统里被关掉了</string>
@@ -315,10 +311,6 @@
 
     <string name="channel_dose_silent_name">服药提醒（静默）</string>
     <string name="channel_dose_silent_description">只在通知栏，不响不震</string>
-    <string name="channel_dose_vibrate_name">服药提醒（只震动）</string>
-    <string name="channel_dose_vibrate_description">只震动，不响铃</string>
-    <string name="channel_dose_sound_name">服药提醒（响亮）</string>
-    <string name="channel_dose_sound_description">响铃、震动</string>
     <string name="channel_dose_banner_name">服药提醒（横幅）</string>
     <string name="channel_dose_banner_description">响铃、震动，顶部弹出</string>
 
