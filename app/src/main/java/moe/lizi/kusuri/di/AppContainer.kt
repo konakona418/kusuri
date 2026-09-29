@@ -10,13 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
 import moe.lizi.kusuri.alarm.AlarmReminderScheduler
 import moe.lizi.kusuri.alarm.DoseNotifier
-import moe.lizi.kusuri.alarm.ReminderMaintenanceWorker
 import moe.lizi.kusuri.alarm.ReminderNotifier
 import moe.lizi.kusuri.data.RoomDoseRecordRepository
 import moe.lizi.kusuri.data.RoomLogEntryRepository
@@ -122,11 +117,28 @@ class AppContainer(context: Context) {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var reminderSyncStarted = false
 
-    /** 开机/改时间/启动时的巡检:疗程收官、库存告警同步、整体重排闹钟、补发漏掉的提醒。 */
-    suspend fun runMaintenance(alertAgain: Boolean = false) {
+    /**
+     * 打开 App / 数据变化时的一次性巡检:疗程收官、库存告警同步、整体重排闹钟。
+     *
+     * **不补发通知**:用户人就在 App 里,今天页写着"到时间了"、历史页写着"错过",
+     * 再弹一条通知只是重复打扰(docs/plan.md §5)。
+     */
+    suspend fun runMaintenance() {
         prepare()
         alarmScheduler.rescheduleAll()
         alarmScheduler.rescheduleAllReminders()
+    }
+
+    /**
+     * 平台叫我们的时候(开机 / 改时间 / 改时区 / 应用更新 / 闹钟响了却认不出目标):
+     * 重排闹钟之外,再把今天"已经到点、仍在宽限窗口内"的剂量、以及最近一小时内本该响过的
+     * 提醒补上——手机是真关机了、闹钟是真没响,这时补发才不是打扰。
+     *
+     * 刻意不做自建的定时巡检:WorkManager 与闹钟受同一套省电策略约束,被系统按住时一起被按住,
+     * 兜不住;能按时跑的时候,又只是每小时把已经到点的旧通知重挂一遍(docs/plan.md §5)。
+     */
+    suspend fun recoverMissed(alertAgain: Boolean = false) {
+        runMaintenance()
         catchUpMissed(clock.instant(), alertAgain)
     }
 
@@ -164,23 +176,12 @@ class AppContainer(context: Context) {
         }
     }
 
-    /** 每 1 小时一次的巡检:WorkManager 作为"漏排/被杀"的安全网(docs/plan.md §5)。 */
-    fun scheduleMaintenance() {
-        val request = PeriodicWorkRequestBuilder<ReminderMaintenanceWorker>(1, TimeUnit.HOURS)
-            .build()
-        WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
-            MAINTENANCE_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            request,
-        )
-    }
-
     /** 药物/提醒数据一变就整体重排闹钟;幂等,可在 App 启动时重复调用。 */
     fun startReminderSync() {
         if (reminderSyncStarted) return
         reminderSyncStarted = true
         applicationScope.launch {
-            // 启动即巡检:疗程收官、库存告警、重排闹钟,并把被系统吞掉的提醒补上。
+            // 启动即巡检:疗程收官、库存告警、重排闹钟。补发留给平台事件,见 recoverMissed。
             runMaintenance()
             launch {
                 medicationRepository.observeMedications().collect { medications ->
@@ -196,8 +197,6 @@ class AppContainer(context: Context) {
     }
 
     private companion object {
-        const val MAINTENANCE_WORK_NAME = "reminder-maintenance"
-
         /** 补发提醒的时间窗:只补"刚刚过去"的,不把几小时前的事翻出来打扰。 */
         val REMINDER_CATCH_UP_WINDOW: Duration = Duration.ofHours(1)
     }

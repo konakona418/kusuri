@@ -29,7 +29,7 @@
 
 ## R8
 - release 已开启 `optimization { enable = true }`(AGP 9 DSL)。
-- Room / Compose / WorkManager 自带 consumer rules;项目特定规则写在 `app/src/main/keepRules/rules.keep`。
+- Room / Compose / CameraX 自带 consumer rules;项目特定规则写在 `app/src/main/keepRules/rules.keep`。
 - R8 只能靠真机冒烟验证:每次发布前跑一遍下面的清单。
 
 ## 发布前检查清单

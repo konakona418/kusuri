@@ -20,8 +20,9 @@ class DoseAlarmReceiver : BroadcastReceiver() {
                 val target = intent.doseTarget()
                 if (target == null) {
                     // 认不出是哪一次(有的 ROM 会把后台广播的 extras 剥空):
-                    // 整轮巡检兜底——该补的补、该重排的重排,"到点不响"绝不能变成静默失效。
-                    container.runMaintenance(alertAgain = snooze)
+                    // 重排全部闹钟,并把刚过去、还在宽限窗口内的剂量补上——
+                    // "到点不响"绝不能变成静默失效。
+                    container.recoverMissed(alertAgain = snooze)
                     return@launch
                 }
                 val (medicationId, scheduledMillis) = target
@@ -30,7 +31,7 @@ class DoseAlarmReceiver : BroadcastReceiver() {
 
                 // 同一计划时刻的多味药折叠成一组:统一走这个入口重建,
                 // 已经记录过的那几味会被自动撤下,剩下的几条仍挂着。
-                container.syncDoseNotifications.sync(
+                container.syncDoseNotifications.show(
                     scheduledAt = Instant.ofEpochMilli(scheduledMillis),
                     now = container.clock.instant(),
                     alertAgain = snooze,

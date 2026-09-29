@@ -120,7 +120,7 @@ class ReminderChannelsTest {
         ).forEach { (level, channelId) ->
             settings.setReminderLevel(level)
 
-            notifier.sync(
+            notifier.show(
                 scheduledAt = scheduledAt,
                 recordedMedicationIds = emptyList(),
                 pending = listOf(DoseAlert(medication, scheduledAt)),
@@ -136,7 +136,7 @@ class ReminderChannelsTest {
         ReminderChannels.ensure(context)
         settings.setReminderLevel(ReminderLevel.BANNER)
 
-        notifier.sync(
+        notifier.show(
             scheduledAt = scheduledAt,
             recordedMedicationIds = emptyList(),
             pending = threeDoses(),
@@ -165,14 +165,14 @@ class ReminderChannelsTest {
     fun `when only one dose is left it is posted on its own and the summary goes away`() {
         ReminderChannels.ensure(context)
         settings.setReminderLevel(ReminderLevel.BANNER)
-        notifier.sync(
+        notifier.show(
             scheduledAt = scheduledAt,
             recordedMedicationIds = emptyList(),
             pending = threeDoses(),
             now = scheduledAt,
         )
 
-        notifier.sync(
+        notifier.show(
             scheduledAt = scheduledAt,
             recordedMedicationIds = listOf(1L, 2L),
             pending = listOf(DoseAlert(medication.copy(id = 3L, name = "阿司匹林"), scheduledAt)),
@@ -190,12 +190,73 @@ class ReminderChannelsTest {
     }
 
     @Test
+    fun `recording a dose only renumbers the summary and leaves the other cards alone`() {
+        ReminderChannels.ensure(context)
+        settings.setReminderLevel(ReminderLevel.BANNER)
+        notifier.show(scheduledAt, emptyList(), threeDoses(), scheduledAt)
+
+        notifier.refresh(
+            scheduledAt = scheduledAt,
+            recordedMedicationIds = listOf(1L),
+            pending = threeDoses().drop(1),
+            now = scheduledAt,
+        )
+
+        val posted = shadowOf(manager).allNotifications
+        assertEquals("撤掉一味、摘要改数字,剩下的原地不动(不新增也不重挂)", 3, posted.size)
+        val summary = posted.single { it.isGroupSummary() }
+        assertEquals(
+            "摘要里只剩还没处理的药名",
+            "布洛芬、阿司匹林",
+            summary.extras.getString(Notification.EXTRA_TEXT),
+        )
+    }
+
+    @Test
+    fun `recording never resurrects a notification that is no longer in the shade`() {
+        // "记录一味药会让别的药再响一遍"的病根:重挂一条不在栏里的通知,系统视为新通知、会响。
+        // 按下「已服用」后系统把通知收走(或用户划过、被清理),剩下的药不该再弹一次。
+        ReminderChannels.ensure(context)
+        settings.setReminderLevel(ReminderLevel.BANNER)
+        notifier.show(scheduledAt, emptyList(), threeDoses(), scheduledAt)
+        manager.cancelAll()
+
+        notifier.refresh(
+            scheduledAt = scheduledAt,
+            recordedMedicationIds = listOf(1L),
+            pending = threeDoses().drop(1),
+            now = scheduledAt,
+        )
+
+        assertTrue("不在通知栏里的就不在,刷新不许复活", shadowOf(manager).allNotifications.isEmpty())
+    }
+
+    @Test
+    fun `the last remaining dose folds back to a standalone card while it is still shown`() {
+        ReminderChannels.ensure(context)
+        settings.setReminderLevel(ReminderLevel.BANNER)
+        notifier.show(scheduledAt, emptyList(), threeDoses(), scheduledAt)
+
+        notifier.refresh(
+            scheduledAt = scheduledAt,
+            recordedMedicationIds = listOf(1L, 2L),
+            pending = listOf(DoseAlert(medication.copy(id = 3L, name = "阿司匹林"), scheduledAt)),
+            now = scheduledAt,
+        )
+
+        val posted = shadowOf(manager).allNotifications
+        assertEquals("已经处理的两条与摘要撤下,只剩那一味", 1, posted.size)
+        assertNull("退回单独一条,不再挂组", posted.single().group)
+        assertFalse(posted.single().isGroupSummary())
+    }
+
+    @Test
     fun `nothing is posted before the planned time`() {
         ReminderChannels.ensure(context)
         settings.setReminderLevel(ReminderLevel.BANNER)
 
         // 在 App 里提前记录会走到这里:那一刻还没到,不该把提醒挂出来。
-        notifier.sync(
+        notifier.show(
             scheduledAt = scheduledAt,
             recordedMedicationIds = emptyList(),
             pending = threeDoses(),

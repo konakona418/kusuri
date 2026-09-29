@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import kotlinx.coroutines.launch
 
-/** 开机、改时间/时区、应用更新后整体重排(系统闹钟在这些事件后会丢失)。 */
+/** 开机、改时间/时区、应用更新后整体重排,并把这段时间里本该响过、还真没响的补上。 */
 class ReminderRescheduleReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -13,7 +13,7 @@ class ReminderRescheduleReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         receiverScope.launch {
             try {
-                container.runMaintenance()
+                container.recoverMissed()
             } finally {
                 pendingResult.finish()
             }

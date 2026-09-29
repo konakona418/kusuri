@@ -153,14 +153,16 @@ class RecordDoseUseCaseTest {
     }
 
     @Test
-    fun `recording rebuilds the notification of that instant`() = runTest {
-        // 同一时刻可能还有别的药:记录一条之后必须重建那一刻的通知(组会缩小)。
+    fun `recording refreshes that instant and never re-shows it`() = runTest {
+        // 同一时刻可能还有别的药:记录一条之后只撤掉它、收拢组摘要。
+        // 绝不重新挂出别的药——重挂一条不在栏里的通知,系统视为新通知,会响。
         val alerts = FakeDoseAlerts()
         val useCase = useCase(alerts = alerts)
 
         useCase.record(1L, scheduledAt, DoseAction.TAKEN, DoseSource.IN_APP)
 
-        assertEquals(listOf(scheduledAt), alerts.synced)
+        assertEquals(listOf(scheduledAt), alerts.refreshed)
+        assertTrue("记录之后不该重新挂出任何通知", alerts.shown.isEmpty())
     }
 }
 
@@ -249,17 +251,27 @@ private class FakeLowStockControl : LowStockAlertControl {
 }
 
 private class FakeDoseAlerts : DoseAlertControl {
-    val synced = mutableListOf<Instant>()
+    val shown = mutableListOf<Instant>()
+    val refreshed = mutableListOf<Instant>()
     val cancelled = mutableListOf<Long>()
 
-    override fun sync(
+    override fun show(
         scheduledAt: Instant,
         recordedMedicationIds: List<Long>,
         pending: List<DoseAlert>,
         now: Instant,
         alertAgain: Boolean,
     ) {
-        synced += scheduledAt
+        shown += scheduledAt
+    }
+
+    override fun refresh(
+        scheduledAt: Instant,
+        recordedMedicationIds: List<Long>,
+        pending: List<DoseAlert>,
+        now: Instant,
+    ) {
+        refreshed += scheduledAt
     }
 
     override fun cancel(medicationId: Long) {

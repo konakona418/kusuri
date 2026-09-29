@@ -68,8 +68,9 @@ class RecordDoseUseCase(
             )
         }
         reminderControl.cancelDose(medicationId)
-        // 同一时刻可能还有别的药没处理:重建这一时刻的通知(两条以上会折叠成一组)。
-        syncNotifications.sync(scheduledAt, clock.instant())
+        // 同一时刻可能还有别的药没处理:只撤掉已处理的、把组收拢到正确味数,
+        // 绝不重新挂出别的药——那一下会让别的药再响一遍(见 DoseAlertControl.refresh)。
+        syncNotifications.refresh(scheduledAt, clock.instant())
         checkLowStock.check(medicationId)
         return !alreadyRecorded
     }

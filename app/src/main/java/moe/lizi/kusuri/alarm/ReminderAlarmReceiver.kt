@@ -17,8 +17,8 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                 val snooze = intent.action == ReminderActions.ACTION_REMINDER_SNOOZE
                 val target = intent.reminderTarget()
                 if (target == null) {
-                    // 同 DoseAlarmReceiver:extras 被剥空时靠整轮巡检兜底。
-                    container.runMaintenance(alertAgain = snooze)
+                    // 同 DoseAlarmReceiver:extras 被剥空时,重排闹钟并把刚过去的提醒补上。
+                    container.recoverMissed(alertAgain = snooze)
                     return@launch
                 }
                 val (reminderId, occurrenceMillis) = target

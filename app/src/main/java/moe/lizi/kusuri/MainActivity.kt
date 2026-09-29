@@ -13,7 +13,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val container = (application as KusuriApplication).container
         container.startReminderSync()
-        container.scheduleMaintenance()
         setContent {
             KusuriTheme {
                 KusuriApp()

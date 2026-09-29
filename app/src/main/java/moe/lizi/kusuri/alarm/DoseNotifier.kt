@@ -29,14 +29,17 @@ import moe.lizi.kusuri.domain.util.formatTime
  * 摘要的 `setOnlyAlertOnce`),否则折叠只省了版面、没省打扰。
  *
  * 通知 id 是确定的(药 id / 时刻),所以任何一次重建都是原地更新,不会堆一屏;
- * 内容由调用方按数据库算好([sync]),这里只管怎么显示。
+ * 内容由调用方按数据库算好([show] / [refresh]),这里只管怎么显示。
+ *
+ * **只有 [show] 会挂出通知**([refresh] 只做减法):重挂一条已经不在通知栏里的通知,
+ * 系统视为一条新通知、会照常响,而"记录一味药"不该让别的药再响一遍。
  */
 class DoseNotifier(
     private val context: Context,
     private val settings: SettingsRepository,
 ) : LowStockAlertControl, DoseAlertControl {
 
-    override fun sync(
+    override fun show(
         scheduledAt: Instant,
         recordedMedicationIds: List<Long>,
         pending: List<DoseAlert>,
@@ -77,6 +80,43 @@ class DoseNotifier(
             buildGroup(pending, level, now, alertAgain = alertAgain),
         )
     }
+
+    override fun refresh(
+        scheduledAt: Instant,
+        recordedMedicationIds: List<Long>,
+        pending: List<DoseAlert>,
+        now: Instant,
+    ) {
+        val manager = NotificationManagerCompat.from(context)
+        recordedMedicationIds.forEach { cancel(it) }
+        if (!manager.areNotificationsEnabled()) return
+
+        // 只做减法:撤掉已处理的,把组摘要收拢到正确的味数与药名。
+        // 组里的其他药内容一个字都没变,所以不碰它们;不在栏里的也不重新挂出来
+        // (见 DoseAlertControl.refresh)——重挂 = 新通知 = 会响。
+        val level = settings.reminderLevel.value
+        if (pending.size < 2) {
+            cancelGroup(scheduledAt)
+        } else if (isShown(manager, groupNotificationId(scheduledAt))) {
+            manager.notify(
+                groupNotificationId(scheduledAt),
+                buildGroup(pending, level, now, alertAgain = false),
+            )
+        }
+
+        // 只剩一味药时要退回单独一条(药名与三个动作都在它自己身上),但也只在它还挂着时收拢。
+        if (pending.size == 1) {
+            val alert = pending.single()
+            val id = doseNotificationId(alert.medication.id)
+            if (isShown(manager, id)) {
+                manager.notify(id, buildDose(alert, level, now, groupKey = null, alertAgain = false))
+            }
+        }
+    }
+
+    /** 这条通知此刻是不是还挂在通知栏里——用平台的事实说话,不靠我们自己的猜测。 */
+    private fun isShown(manager: NotificationManagerCompat, id: Int): Boolean =
+        runCatching { manager.activeNotifications.any { it.id == id } }.getOrDefault(false)
 
     override fun cancel(medicationId: Long) {
         NotificationManagerCompat.from(context).cancel(doseNotificationId(medicationId))

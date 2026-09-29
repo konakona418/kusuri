@@ -24,8 +24,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 补发:闹钟被系统吞掉(App 被杀/省电策略/更新后没重排)时,把"今天已经到点、还在宽限
- * 窗口内"的剂量重新挂上通知(docs/plan.md §5)。时区固定 +08:00。
+ * 两条入口的边界(docs/plan.md §4.1、§5):平台叫我们时 [SyncDoseNotificationsUseCase.catchUp]
+ * / [SyncDoseNotificationsUseCase.show] 才挂通知;记录之后的
+ * [SyncDoseNotificationsUseCase.refresh] 只做减法,绝不重挂。时区固定 +08:00。
  */
 class SyncDoseNotificationsUseCaseTest {
 
@@ -54,7 +55,7 @@ class SyncDoseNotificationsUseCaseTest {
         val now = Instant.parse("2026-09-29T01:30:00Z") // 09:30,09:00 已到点半小时
 
         assertEquals(1, useCase.catchUp(now, Duration.ofHours(3), zone))
-        assertEquals(listOf(Instant.parse("2026-09-29T01:00:00Z")), alerts.synced)
+        assertEquals(listOf(Instant.parse("2026-09-29T01:00:00Z")), alerts.shown)
         assertEquals(1, alerts.pending.last().size)
     }
 
@@ -64,7 +65,7 @@ class SyncDoseNotificationsUseCaseTest {
 
         // 距 09:00 已 4 小时,超出 3 小时宽限 → 那已经是"错过",不再补发通知。
         assertEquals(0, useCase.catchUp(Instant.parse("2026-09-29T05:00:00Z"), Duration.ofHours(3), zone))
-        assertTrue(alerts.synced.isEmpty())
+        assertTrue(alerts.shown.isEmpty())
     }
 
     @Test
@@ -99,6 +100,19 @@ class SyncDoseNotificationsUseCaseTest {
         )
 
         assertTrue("补发默认安静,但\"稍后\"要重新响", alerts.alertAgain.all { it })
+    }
+
+    @Test
+    fun `refresh only subtracts and never re-shows`() = runTest {
+        val (useCase, alerts) = useCase()
+
+        useCase.refresh(
+            scheduledAt = Instant.parse("2026-09-29T01:00:00Z"),
+            now = Instant.parse("2026-09-29T01:30:00Z"),
+        )
+
+        assertEquals(listOf(Instant.parse("2026-09-29T01:00:00Z")), alerts.refreshed)
+        assertTrue("记录之后不该重新挂出任何通知", alerts.shown.isEmpty())
     }
 
     private fun medication(id: Long, name: String, time: LocalTime) = Medication(
@@ -156,20 +170,30 @@ private class CatchUpRecordRepository : DoseRecordRepository {
 }
 
 private class RecordingDoseAlerts : DoseAlertControl {
-    val synced = mutableListOf<Instant>()
+    val shown = mutableListOf<Instant>()
+    val refreshed = mutableListOf<Instant>()
     val pending = mutableListOf<List<DoseAlert>>()
     val alertAgain = mutableListOf<Boolean>()
 
-    override fun sync(
+    override fun show(
         scheduledAt: Instant,
         recordedMedicationIds: List<Long>,
         pending: List<DoseAlert>,
         now: Instant,
         alertAgain: Boolean,
     ) {
-        synced += scheduledAt
+        shown += scheduledAt
         this.pending += pending
         this.alertAgain += alertAgain
+    }
+
+    override fun refresh(
+        scheduledAt: Instant,
+        recordedMedicationIds: List<Long>,
+        pending: List<DoseAlert>,
+        now: Instant,
+    ) {
+        refreshed += scheduledAt
     }
 
     override fun cancel(medicationId: Long) = Unit
