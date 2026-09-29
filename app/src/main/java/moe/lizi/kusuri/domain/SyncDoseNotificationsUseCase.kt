@@ -59,6 +59,7 @@ class SyncDoseNotificationsUseCase(
         now: Instant,
         gracePeriod: Duration,
         zone: ZoneId = ZoneId.systemDefault(),
+        alertAgain: Boolean = false,
     ): Int {
         val today = now.atZone(zone).toLocalDate()
         val medications = medicationRepository.observeMedications().first()
@@ -70,7 +71,7 @@ class SyncDoseNotificationsUseCase(
             .filter { instant -> !instant.isAfter(now) && now.isBefore(instant.plus(gracePeriod)) }
             .sorted()
 
-        due.forEach { instant -> sync(instant, now) }
+        due.forEach { instant -> sync(instant, now, alertAgain = alertAgain) }
         return due.size
     }
 }

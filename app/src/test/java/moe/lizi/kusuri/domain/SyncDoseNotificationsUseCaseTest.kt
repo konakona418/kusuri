@@ -87,6 +87,20 @@ class SyncDoseNotificationsUseCaseTest {
         assertTrue("已经服用过,不该再挂通知", alerts.pending.all { it.isEmpty() })
     }
 
+    @Test
+    fun `catch up can re-alert when the alarm was a snooze`() = runTest {
+        val (useCase, alerts) = useCase()
+
+        useCase.catchUp(
+            now = Instant.parse("2026-09-29T01:30:00Z"),
+            gracePeriod = Duration.ofHours(3),
+            zone = zone,
+            alertAgain = true,
+        )
+
+        assertTrue("补发默认安静,但\"稍后\"要重新响", alerts.alertAgain.all { it })
+    }
+
     private fun medication(id: Long, name: String, time: LocalTime) = Medication(
         id = id,
         name = name,
@@ -144,6 +158,7 @@ private class CatchUpRecordRepository : DoseRecordRepository {
 private class RecordingDoseAlerts : DoseAlertControl {
     val synced = mutableListOf<Instant>()
     val pending = mutableListOf<List<DoseAlert>>()
+    val alertAgain = mutableListOf<Boolean>()
 
     override fun sync(
         scheduledAt: Instant,
@@ -154,6 +169,7 @@ private class RecordingDoseAlerts : DoseAlertControl {
     ) {
         synced += scheduledAt
         this.pending += pending
+        this.alertAgain += alertAgain
     }
 
     override fun cancel(medicationId: Long) = Unit

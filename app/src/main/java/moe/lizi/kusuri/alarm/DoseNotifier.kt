@@ -216,6 +216,8 @@ class DoseNotifier(
     private fun doseAction(action: String, medicationId: Long, scheduledMillis: Long): PendingIntent {
         val intent = Intent(context, DoseActionReceiver::class.java).apply {
             this.action = action
+            // 身份放 data:有的 ROM 会把广播 extras 剥掉(见 ReminderUris)。
+            data = ReminderUris.dose(medicationId, scheduledMillis)
             putExtra(ReminderExtras.MEDICATION_ID, medicationId)
             putExtra(ReminderExtras.SCHEDULED_AT, scheduledMillis)
         }

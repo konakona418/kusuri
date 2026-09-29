@@ -12,9 +12,8 @@ import moe.lizi.kusuri.domain.model.DoseSource
 class DoseActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val medicationId = intent.getLongExtra(ReminderExtras.MEDICATION_ID, -1L)
-        val scheduledMillis = intent.getLongExtra(ReminderExtras.SCHEDULED_AT, -1L)
-        if (medicationId <= 0L || scheduledMillis <= 0L) return
+        val target = intent.doseTarget() ?: return
+        val (medicationId, scheduledMillis) = target
 
         val container = context.appContainer()
         val scheduledAt = Instant.ofEpochMilli(scheduledMillis)

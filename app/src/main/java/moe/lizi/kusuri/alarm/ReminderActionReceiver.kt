@@ -9,8 +9,7 @@ import kotlinx.coroutines.launch
 class ReminderActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val reminderId = intent.getLongExtra(ReminderExtras.REMINDER_ID, -1L)
-        if (reminderId <= 0L) return
+        val reminderId = intent.reminderTarget()?.first ?: return
 
         val container = context.appContainer()
         val pendingResult = goAsync()

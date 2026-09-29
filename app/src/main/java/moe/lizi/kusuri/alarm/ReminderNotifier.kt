@@ -124,6 +124,8 @@ class ReminderNotifier(
     private fun action(action: String, reminderId: Long): PendingIntent {
         val intent = Intent(context, ReminderActionReceiver::class.java).apply {
             this.action = action
+            // 身份放 data:有的 ROM 会把广播 extras 剥掉(见 ReminderUris)。
+            data = ReminderUris.reminder(reminderId)
             putExtra(ReminderExtras.REMINDER_ID, reminderId)
         }
         return PendingIntent.getBroadcast(

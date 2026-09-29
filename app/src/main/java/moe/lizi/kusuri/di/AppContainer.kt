@@ -123,22 +123,24 @@ class AppContainer(context: Context) {
     private var reminderSyncStarted = false
 
     /** 开机/改时间/启动时的巡检:疗程收官、库存告警同步、整体重排闹钟、补发漏掉的提醒。 */
-    suspend fun runMaintenance() {
+    suspend fun runMaintenance(alertAgain: Boolean = false) {
         prepare()
         alarmScheduler.rescheduleAll()
         alarmScheduler.rescheduleAllReminders()
-        catchUpMissed(clock.instant())
+        catchUpMissed(clock.instant(), alertAgain)
     }
 
     /**
-     * 闹钟可能被系统吞掉(App 被杀、省电策略、更新后没来得及重排):
-     * 把今天"已经到点、还在宽限窗口内"的剂量、以及最近一小时内本该响过的一次性/重复提醒补上。
+     * 闹钟可能被系统吞掉(App 被杀、省电策略、更新后没来得及重排),或者闹钟广播的 extras
+     * 被 ROM 剥空导致接收器认不出是哪一次:把今天"已经到点、还在宽限窗口内"的剂量、
+     * 以及最近一小时内本该响过的一次性/重复提醒补上。
      * 幂等——已经挂着的通知只是原地更新,不会重复响。
      */
-    private suspend fun catchUpMissed(now: Instant) {
+    private suspend fun catchUpMissed(now: Instant, alertAgain: Boolean) {
         syncDoseNotifications.catchUp(
             now = now,
             gracePeriod = Duration.ofHours(settingsRepository.gracePeriodHours.value.toLong()),
+            alertAgain = alertAgain,
         )
         val zone = ZoneId.systemDefault()
         val today = now.atZone(zone).toLocalDate()
@@ -148,7 +150,9 @@ class AppContainer(context: Context) {
                 val occurrence = ReminderSchedule.occurrenceOn(reminder, today, zone) ?: return@forEach
                 val missedRecently = !occurrence.isAfter(now) &&
                     occurrence.isAfter(now.minus(REMINDER_CATCH_UP_WINDOW))
-                if (missedRecently) reminderNotifier.notify(reminder, occurrence, now)
+                if (missedRecently) {
+                    reminderNotifier.notify(reminder, occurrence, now, alertAgain = alertAgain)
+                }
             }
     }
 
