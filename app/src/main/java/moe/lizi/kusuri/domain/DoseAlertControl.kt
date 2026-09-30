@@ -21,18 +21,18 @@ interface DoseAlertControl {
     )
 
     /**
-     * 记录之后的刷新:**只做减法**。
+     * 记录之后的刷新:**只做减法,一次 `notify` 都不发**。
      *
-     * 撤掉已处理的,把组摘要收拢到正确的味数与药名,剩一味时退回单独一条;
-     * 已经不在通知栏里的就让它不在,不"复活"。重挂一条不在栏里的通知,
-     * 在系统看来是一条**新通知**(会响)——用户按下"已服用"的那一下,
-     * 不该让这一刻别的药再响一遍(docs/plan.md §4.1)。
+     * 撤掉已处理的;组里只剩不到两味时连摘要一起撤掉(它已经没有意义)。
+     * 其他的什么都不动——不重新挂、也不"更新摘要的数字":实测小米 HyperOS 对重挂
+     * 照样会把通知重新上屏(AlertCoordinator 的 `onViewBound`),于是"补记一条"
+     * 又会把这一刻别的药弹出来。摘要上的味数会暂时偏大,直到下一次到点或开机重建时校正;
+     * 而味数从来不是重点(docs/plan.md §4.1、§11)。
      */
     fun refresh(
         scheduledAt: Instant,
         recordedMedicationIds: List<Long>,
         pending: List<DoseAlert>,
-        now: Instant,
     )
 
     fun cancel(medicationId: Long)

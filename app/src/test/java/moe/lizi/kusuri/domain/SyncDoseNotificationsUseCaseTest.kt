@@ -106,10 +106,7 @@ class SyncDoseNotificationsUseCaseTest {
     fun `refresh only subtracts and never re-shows`() = runTest {
         val (useCase, alerts) = useCase()
 
-        useCase.refresh(
-            scheduledAt = Instant.parse("2026-09-29T01:00:00Z"),
-            now = Instant.parse("2026-09-29T01:30:00Z"),
-        )
+        useCase.refresh(scheduledAt = Instant.parse("2026-09-29T01:00:00Z"))
 
         assertEquals(listOf(Instant.parse("2026-09-29T01:00:00Z")), alerts.refreshed)
         assertTrue("记录之后不该重新挂出任何通知", alerts.shown.isEmpty())
@@ -191,7 +188,6 @@ private class RecordingDoseAlerts : DoseAlertControl {
         scheduledAt: Instant,
         recordedMedicationIds: List<Long>,
         pending: List<DoseAlert>,
-        now: Instant,
     ) {
         refreshed += scheduledAt
     }

@@ -85,38 +85,14 @@ class DoseNotifier(
         scheduledAt: Instant,
         recordedMedicationIds: List<Long>,
         pending: List<DoseAlert>,
-        now: Instant,
     ) {
-        val manager = NotificationManagerCompat.from(context)
+        // 只做减法:撤掉已处理的;组里剩不到两味时连摘要一起撤掉。
+        // 别的一律不碰——任何一次 notify(哪怕只是把摘要的数字改小)都会被系统
+        // 当成一次重新上屏(HyperOS 实测会 buzzBeep 绑定视图),于是"补记一条"
+        // 又会让这一刻别的药弹出来。摘要上暂时偏大的味数会在下一次到点/开机重建时校正。
         recordedMedicationIds.forEach { cancel(it) }
-        if (!manager.areNotificationsEnabled()) return
-
-        // 只做减法:撤掉已处理的,把组摘要收拢到正确的味数与药名。
-        // 组里的其他药内容一个字都没变,所以不碰它们;不在栏里的也不重新挂出来
-        // (见 DoseAlertControl.refresh)——重挂 = 新通知 = 会响。
-        val level = settings.reminderLevel.value
-        if (pending.size < 2) {
-            cancelGroup(scheduledAt)
-        } else if (isShown(manager, groupNotificationId(scheduledAt))) {
-            manager.notify(
-                groupNotificationId(scheduledAt),
-                buildGroup(pending, level, now, alertAgain = false),
-            )
-        }
-
-        // 只剩一味药时要退回单独一条(药名与三个动作都在它自己身上),但也只在它还挂着时收拢。
-        if (pending.size == 1) {
-            val alert = pending.single()
-            val id = doseNotificationId(alert.medication.id)
-            if (isShown(manager, id)) {
-                manager.notify(id, buildDose(alert, level, now, groupKey = null, alertAgain = false))
-            }
-        }
+        if (pending.size < 2) cancelGroup(scheduledAt)
     }
-
-    /** 这条通知此刻是不是还挂在通知栏里——用平台的事实说话,不靠我们自己的猜测。 */
-    private fun isShown(manager: NotificationManagerCompat, id: Int): Boolean =
-        runCatching { manager.activeNotifications.any { it.id == id } }.getOrDefault(false)
 
     override fun cancel(medicationId: Long) {
         NotificationManagerCompat.from(context).cancel(doseNotificationId(medicationId))

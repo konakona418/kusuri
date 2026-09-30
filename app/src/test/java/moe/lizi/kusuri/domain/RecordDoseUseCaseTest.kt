@@ -63,7 +63,6 @@ class RecordDoseUseCaseTest {
             engine = ScheduleEngine(clock) { zone },
             alerts = alerts,
         ),
-        clock = clock,
     )
 
     @Test
@@ -269,7 +268,6 @@ private class FakeDoseAlerts : DoseAlertControl {
         scheduledAt: Instant,
         recordedMedicationIds: List<Long>,
         pending: List<DoseAlert>,
-        now: Instant,
     ) {
         refreshed += scheduledAt
     }

@@ -1,6 +1,5 @@
 package moe.lizi.kusuri.domain
 
-import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.flow.first
 import moe.lizi.kusuri.domain.model.DoseAction
@@ -17,7 +16,6 @@ class RecordDoseUseCase(
     private val reminderControl: DoseReminderControl,
     private val checkLowStock: CheckLowStockUseCase,
     private val syncNotifications: SyncDoseNotificationsUseCase,
-    private val clock: Clock,
 ) {
 
     /** 返回是否真正新写入了一条记录。 */
@@ -68,9 +66,9 @@ class RecordDoseUseCase(
             )
         }
         reminderControl.cancelDose(medicationId)
-        // 同一时刻可能还有别的药没处理:只撤掉已处理的、把组收拢到正确味数,
-        // 绝不重新挂出别的药——那一下会让别的药再响一遍(见 DoseAlertControl.refresh)。
-        syncNotifications.refresh(scheduledAt, clock.instant())
+        // 同一时刻可能还有别的药没处理:只撤掉已处理的(一次 notify 都不发),
+        // 否则"补记一条"又会让别的药重新上屏(docs/plan.md §4.1)。
+        syncNotifications.refresh(scheduledAt)
         checkLowStock.check(medicationId)
         return !alreadyRecorded
     }

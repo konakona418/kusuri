@@ -14,7 +14,7 @@ import moe.lizi.kusuri.domain.schedule.ScheduleEngine
  * 两条入口,边界刻意分明:
  * - [show]:到点闹钟响、平台叫我们补发时,按数据库重算这一刻还差哪些药,挂出通知
  *   ——一条单独发、两条以上折叠成一组。
- * - [refresh]:某一味药被记录之后,只撤掉它、把组收拢,绝不重新挂出别的药。
+ * - [refresh]:某一味药被记录之后,只撤不挂(见 [DoseAlertControl.refresh])。
  *
  * "哪些药该在这一刻"用的判据与今天的界面一致:该药在该日展开出的计划剂量里包含这个时刻。
  */
@@ -31,10 +31,10 @@ class SyncDoseNotificationsUseCase(
         alerts.show(scheduledAt, recorded, pending, now, alertAgain)
     }
 
-    /** 记录之后:撤掉已处理的、收拢组摘要,**不重新挂出任何通知**。 */
-    suspend fun refresh(scheduledAt: Instant, now: Instant) {
+    /** 记录之后:只撤掉已处理的、收拢摘要,**一次 notify 都不发**。 */
+    suspend fun refresh(scheduledAt: Instant) {
         val (recorded, pending) = resolve(scheduledAt)
-        alerts.refresh(scheduledAt, recorded, pending, now)
+        alerts.refresh(scheduledAt, recorded, pending)
     }
 
     /**

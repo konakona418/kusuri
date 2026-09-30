@@ -190,7 +190,9 @@ class ReminderChannelsTest {
     }
 
     @Test
-    fun `recording a dose only renumbers the summary and leaves the other cards alone`() {
+    fun `recording a dose only subtracts and never re-posts`() {
+        // 任何一次 notify(哪怕只是把摘要的数字改小)都会被 HyperOS 重新上屏,
+        // 于是"补记一条"又会让这一刻别的药弹出来。记录之后只允许撤:不动摘要、不动卡片。
         ReminderChannels.ensure(context)
         settings.setReminderLevel(ReminderLevel.BANNER)
         notifier.show(scheduledAt, emptyList(), threeDoses(), scheduledAt)
@@ -199,15 +201,14 @@ class ReminderChannelsTest {
             scheduledAt = scheduledAt,
             recordedMedicationIds = listOf(1L),
             pending = threeDoses().drop(1),
-            now = scheduledAt,
         )
 
         val posted = shadowOf(manager).allNotifications
-        assertEquals("撤掉一味、摘要改数字,剩下的原地不动(不新增也不重挂)", 3, posted.size)
+        assertEquals("撤掉一味,其余的原地不动", 3, posted.size)
         val summary = posted.single { it.isGroupSummary() }
         assertEquals(
-            "摘要里只剩还没处理的药名",
-            "布洛芬、阿司匹林",
+            "摘要保持原样:味数会在下一次到点/开机重建时校正,而数字不是重点",
+            "二甲双胍、布洛芬、阿司匹林",
             summary.extras.getString(Notification.EXTRA_TEXT),
         )
     }
@@ -225,14 +226,15 @@ class ReminderChannelsTest {
             scheduledAt = scheduledAt,
             recordedMedicationIds = listOf(1L),
             pending = threeDoses().drop(1),
-            now = scheduledAt,
         )
 
         assertTrue("不在通知栏里的就不在,刷新不许复活", shadowOf(manager).allNotifications.isEmpty())
     }
 
     @Test
-    fun `the last remaining dose folds back to a standalone card while it is still shown`() {
+    fun `recording down to one dose drops the summary and leaves the card as it is`() {
+        // 剩一味时摘要没有意义(那条卡片自己带着药名与三个动作),撤掉;
+        // 但卡片本身不去重新挂——重挂就是"又弹一次"。
         ReminderChannels.ensure(context)
         settings.setReminderLevel(ReminderLevel.BANNER)
         notifier.show(scheduledAt, emptyList(), threeDoses(), scheduledAt)
@@ -241,12 +243,15 @@ class ReminderChannelsTest {
             scheduledAt = scheduledAt,
             recordedMedicationIds = listOf(1L, 2L),
             pending = listOf(DoseAlert(medication.copy(id = 3L, name = "阿司匹林"), scheduledAt)),
-            now = scheduledAt,
         )
 
         val posted = shadowOf(manager).allNotifications
-        assertEquals("已经处理的两条与摘要撤下,只剩那一味", 1, posted.size)
-        assertNull("退回单独一条,不再挂组", posted.single().group)
+        assertEquals("已处理的两条与摘要撤下,只剩那一味", 1, posted.size)
+        assertEquals(
+            "卡片原地不动,连组 key 都不改(不去重新挂一次)",
+            DoseNotifier.groupKey(scheduledAt),
+            posted.single().group,
+        )
         assertFalse(posted.single().isGroupSummary())
     }
 

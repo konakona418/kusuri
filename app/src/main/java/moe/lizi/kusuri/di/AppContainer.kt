@@ -106,7 +106,6 @@ class AppContainer(context: Context) {
             reminderControl = alarmScheduler,
             checkLowStock = checkLowStock,
             syncNotifications = syncDoseNotifications,
-            clock = clock,
         )
     }
 
